@@ -215,7 +215,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   const weekly = settledWeeks.map((event) => {
     const rows = weeklyTable(source.scores, source.managers, event, options);
     const average = rows.length
-      ? Math.round(rows.reduce((sum, r) => sum + r.net, 0) / rows.length)
+      ? Math.round(rows.reduce((sum, r) => sum + r.points, 0) / rows.length)
       : 0;
 
     return {
@@ -234,7 +234,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
           `transfer beyond your free ones; Wildcard and Free Hit gameweeks cost nothing. ` +
           `${tiebreakNote}${prejoinNote}`,
         rows: toUiRows(rows, (r) => [
-          String(r.net),
+          String(r.points),
           r.hits ? `−${r.hits}` : '—',
           cfg.site.showBenchColumn ? String(r.bench) : '—',
         ]),
@@ -267,9 +267,9 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
           `A gameweek belongs to the month of its FPL deadline, so months hold unequal numbers ` +
           `of gameweeks — ${monthLabel(key, tz)} holds ${scheduled}. ${tiebreakNote}`,
         rows: toUiRows(rows, (r) => [
-          String(r.net),
+          String(r.points),
           String(r.gameweeks),
-          String(r.gameweeks ? Math.round(r.net / r.gameweeks) : 0),
+          String(r.gameweeks ? Math.round(r.points / r.gameweeks) : 0),
         ]),
       },
     };
@@ -290,7 +290,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     note:
       `Mirrors the official FPL standings, recomputed from stored per-gameweek rows so any ` +
       `rule change applies retroactively.${prejoinNote}`,
-    rows: toUiRows(seasonRows, (r) => [String(r.net), r.hits ? `−${r.hits}` : '—', String(r.best)]),
+    rows: toUiRows(seasonRows, (r) => [String(r.points), r.hits ? `−${r.hits}` : '—', String(r.best)]),
   };
 
   /* ---- history */
@@ -304,7 +304,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         const rows = weeklyTable(source.scores, source.managers, event, options);
         const winner = declareWinner(rows, cfg.rules.tiebreakOrder);
         return winner
-          ? { gw: `GW ${pad(event)}`, name: nameOf(winner.entryId), pts: winner.net }
+          ? { gw: `GW ${pad(event)}`, name: nameOf(winner.entryId), pts: winner.points }
           : null;
       })
       .filter((x): x is { gw: string; name: string; pts: number } => x !== null),
@@ -316,7 +316,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
           monthlyTable(source.scores, source.managers, events, options),
           cfg.rules.tiebreakOrder,
         );
-        return winner ? { month: short, name: nameOf(winner.entryId), pts: winner.net } : null;
+        return winner ? { month: short, name: nameOf(winner.entryId), pts: winner.points } : null;
       })
       .filter((x): x is { month: string; name: string; pts: number } => x !== null),
   };
@@ -344,7 +344,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       week: {
         label: `Gameweek ${lastSettled} winner`,
         name: weekWinner ? nameOf(weekWinner.entryId) : '—',
-        value: weekWinner ? `${weekWinner.net} pts` : '—',
+        value: weekWinner ? `${weekWinner.points} pts` : '—',
         sub: weekWinner?.decidedBy
           ? `won on ${TIEBREAK_LABELS[weekWinner.decidedBy]}`
           : weekWinner?.tiedWith.length
@@ -354,13 +354,13 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       month: {
         label: `${monthLabel(currentMonthKey, tz)} — leading`,
         name: monthLeader ? nameOf(monthLeader.entryId) : '—',
-        value: monthLeader ? `${monthLeader.net} pts` : '—',
+        value: monthLeader ? `${monthLeader.points} pts` : '—',
         sub: monthLeader ? `across ${monthLeader.gameweeks} gameweeks` : '',
       },
       season: {
         label: 'Season leader',
         name: seasonLeader ? nameOf(seasonLeader.entryId) : '—',
-        value: seasonLeader ? `${seasonLeader.net} pts` : '—',
+        value: seasonLeader ? `${seasonLeader.points} pts` : '—',
         sub: `after ${lastSettled} of ${source.weeks.length}`,
       },
     };

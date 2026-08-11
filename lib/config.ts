@@ -40,12 +40,12 @@ const cssColor = (fallback: string) =>
       message: 'contains characters not valid in a CSS colour',
     });
 
-const TIEBREAK_KEYS = ['net', 'hits', 'bench', 'overall_rank'] as const;
+const TIEBREAK_KEYS = ['points', 'hits', 'bench', 'overall_rank'] as const;
 export type TiebreakKey = (typeof TIEBREAK_KEYS)[number];
 
 /** Plain-English rule names for the footnote under every table (section 10). */
 export const TIEBREAK_LABELS: Record<TiebreakKey, string> = {
-  net: 'the higher score',
+  points: 'the higher score',
   hits: 'fewer points lost to transfers',
   bench: 'fewer points left on the bench',
   overall_rank: 'the better overall FPL rank',
@@ -56,7 +56,7 @@ const tiebreakOrder = z
   .string()
   .optional()
   .transform((v) =>
-    (v === undefined || v.trim() === '' ? 'net,hits,bench,overall_rank' : v)
+    (v === undefined || v.trim() === '' ? 'points,hits,bench,overall_rank' : v)
       .split(',')
       .map((s) => s.trim().toLowerCase())
       .filter(Boolean),
@@ -64,8 +64,8 @@ const tiebreakOrder = z
   .refine((keys) => keys.length > 0 && keys.every((k) => TIEBREAK_KEYS.includes(k as TiebreakKey)), {
     message: `must be a comma-separated subset of: ${TIEBREAK_KEYS.join(', ')}`,
   })
-  .refine((keys) => keys[0] === 'net', {
-    message: 'must start with "net" — total points always decides first',
+  .refine((keys) => keys[0] === 'points', {
+    message: 'must start with "points" — total points always decides first',
   })
   .transform((keys) => keys as TiebreakKey[]);
 

@@ -89,7 +89,7 @@ export const gwScores = pgTable('gw_scores', {
    * gross - cost. Denormalised deliberately: it is what every table sorts and
    * sums on, and storing it keeps the scoring queries readable (section 5b).
    */
-  netPoints: smallint('net_points').notNull(),
+  points: smallint('points').notNull(),
   pointsOnBench: smallint('points_on_bench').notNull().default(0),
   /** Overall FPL rank after this gameweek. Needed for the overall_rank tie-break. */
   overallRank: integer('overall_rank'),
@@ -109,7 +109,7 @@ export const weeklyWinners = pgTable('weekly_winners', {
   entryId: integer('entry_id')
     .notNull()
     .references(() => managers.entryId, { onDelete: 'cascade' }),
-  netPoints: smallint('net_points').notNull(),
+  points: smallint('points').notNull(),
   /**
    * Co-winners when every configured tie-break is exhausted. Empty in the
    * normal case; a shared win is the final rule in the default order.
@@ -127,7 +127,7 @@ export const monthlyWinners = pgTable('monthly_winners', {
   entryId: integer('entry_id')
     .notNull()
     .references(() => managers.entryId, { onDelete: 'cascade' }),
-  totalNetPoints: integer('total_net_points').notNull(),
+  totalPoints: integer('total_points').notNull(),
   /** How many gameweeks fell in this month — they are not equal (2 to 6). */
   gameweekCount: smallint('gameweek_count').notNull(),
   tiedWith: integer('tied_with').array().notNull().default([]),

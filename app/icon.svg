@@ -1,5 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="104" fill="#3b1d70"></rect>
-  <text x="236" y="374" text-anchor="middle" font-family="Bebas Neue, Impact, Helvetica, sans-serif" font-weight="700" font-size="330" fill="#f7f5fa">G</text>
-  <circle cx="408" cy="408" r="44" fill="#3ddc84"></circle>
+  <style>
+    /* The favicon sits in the browser chrome, which follows the OS theme —
+       not the page theme — so it keys off prefers-color-scheme directly. */
+    :root { --plate: #3b1d70; --mark: #f7f5fa; --dot: #3ddc84; }
+    @media (prefers-color-scheme: dark) {
+      /* Matches the supplied dark asset: green mark, no dot — at 16px the dot
+         would sit green-on-green against the mark and just read as noise. */
+      :root { --plate: #16131f; --mark: #3ddc84; --dot: transparent; }
+    }
+  </style>
+  <rect width="512" height="512" rx="104" fill="var(--plate)"></rect>
+  <text x="236" y="374" text-anchor="middle" font-family="Bebas Neue, Impact, Helvetica, sans-serif" font-weight="700" font-size="330" fill="var(--mark)">G</text>
+  <circle cx="408" cy="408" r="44" fill="var(--dot)"></circle>
 </svg>

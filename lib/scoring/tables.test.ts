@@ -3,7 +3,7 @@ import type { TiebreakKey } from '../config';
 import {
   aggregate,
   declareWinner,
-  netPoints,
+  pointsAfterCost,
   rank,
   seasonTable,
   weeklyTable,
@@ -11,7 +11,7 @@ import {
   type ScoreRow,
 } from './tables';
 
-const ORDER: TiebreakKey[] = ['net', 'hits', 'bench', 'overall_rank'];
+const ORDER: TiebreakKey[] = ['points', 'hits', 'bench', 'overall_rank'];
 const OPTIONS = { countPrejoinGws: false, tiebreakOrder: ORDER };
 
 const managers: ManagerRef[] = [
@@ -31,20 +31,20 @@ function row(over: Partial<ScoreRow> & Pick<ScoreRow, 'entryId' | 'event'>): Sco
   };
 }
 
-describe('netPoints', () => {
+describe('pointsAfterCost', () => {
   it('subtracts the transfer cost from gross', () => {
-    expect(netPoints({ grossPoints: 80, transferCost: 8 })).toBe(72);
+    expect(pointsAfterCost({ grossPoints: 80, transferCost: 8 })).toBe(72);
   });
 
   it('is the measure that decides order — 80 with a -8 loses to a clean 74', () => {
-    const withHit = netPoints({ grossPoints: 80, transferCost: 8 });
-    const clean = netPoints({ grossPoints: 74, transferCost: 0 });
+    const withHit = pointsAfterCost({ grossPoints: 80, transferCost: 8 });
+    const clean = pointsAfterCost({ grossPoints: 74, transferCost: 0 });
     expect(withHit).toBeLessThan(clean);
   });
 });
 
 describe('tie-breaks', () => {
-  it('ranks on net points first', () => {
+  it('ranks on points first', () => {
     const rows = [
       row({ entryId: 1, event: 1, grossPoints: 60 }),
       row({ entryId: 2, event: 1, grossPoints: 80 }),
@@ -53,15 +53,15 @@ describe('tie-breaks', () => {
     expect(weeklyTable(rows, managers, 1, OPTIONS).map((r) => r.entryId)).toEqual([2, 3, 1]);
   });
 
-  it('breaks a net tie on fewest hits', () => {
+  it('breaks a points tie on fewest hits', () => {
     const rows = [
       row({ entryId: 1, event: 1, grossPoints: 80, transferCost: 8 }),
       row({ entryId: 2, event: 1, grossPoints: 72, transferCost: 0 }),
     ];
     const table = weeklyTable(rows, managers, 1, OPTIONS);
     expect(table[0].entryId).toBe(2);
-    expect(table[0].net).toBe(72);
-    expect(table[1].net).toBe(72);
+    expect(table[0].points).toBe(72);
+    expect(table[1].points).toBe(72);
   });
 
   it('breaks a hits tie on fewest bench points', () => {
@@ -117,7 +117,7 @@ describe('tie-breaks', () => {
     const byHits = weeklyTable(rows, managers, 1, OPTIONS);
     const byBench = weeklyTable(rows, managers, 1, {
       ...OPTIONS,
-      tiebreakOrder: ['net', 'bench', 'hits'],
+      tiebreakOrder: ['points', 'bench', 'hits'],
     });
     expect(byHits[0].entryId).toBe(2);
     expect(byBench[0].entryId).toBe(1);
@@ -131,7 +131,7 @@ describe('declareWinner', () => {
       row({ entryId: 2, event: 1, grossPoints: 60 }),
     ];
     const winner = declareWinner(weeklyTable(rows, managers, 1, OPTIONS), ORDER);
-    expect(winner).toMatchObject({ entryId: 1, net: 90, decidedBy: null, tiedWith: [] });
+    expect(winner).toMatchObject({ entryId: 1, points: 90, decidedBy: null, tiedWith: [] });
   });
 
   it('names the rule that settled it', () => {
@@ -172,13 +172,13 @@ describe('mid-season joiners (gotcha 5)', () => {
 
   it('excludes pre-join gameweeks by default', () => {
     const table = seasonTable(rows, late, OPTIONS);
-    expect(table.find((r) => r.entryId === 3)!.net).toBe(40);
+    expect(table.find((r) => r.entryId === 3)!.points).toBe(40);
     expect(table.find((r) => r.entryId === 3)!.gameweeks).toBe(1);
   });
 
   it('includes them when COUNT_PREJOIN_GWS is on', () => {
     const table = seasonTable(rows, late, { ...OPTIONS, countPrejoinGws: true });
-    expect(table.find((r) => r.entryId === 3)!.net).toBe(238);
+    expect(table.find((r) => r.entryId === 3)!.points).toBe(238);
   });
 
   it('keeps a late joiner out of a gameweek they were not in', () => {
@@ -192,9 +192,9 @@ describe('aggregate', () => {
     row({ entryId: 1, event: 2, grossPoints: 80, transferCost: 0, pointsOnBench: 2, overallRank: 150 }),
   ];
 
-  it('sums net, hits and bench across gameweeks', () => {
+  it('sums points, hits and bench across gameweeks', () => {
     const [total] = aggregate(rows, [managers[0]], { countPrejoinGws: false });
-    expect(total).toMatchObject({ net: 136, gross: 140, hits: 4, bench: 7, gameweeks: 2 });
+    expect(total).toMatchObject({ points: 136, gross: 140, hits: 4, bench: 7, gameweeks: 2 });
   });
 
   it('keeps the best single gameweek', () => {
@@ -213,7 +213,7 @@ describe('aggregate', () => {
 
   it('restricts to the requested gameweeks', () => {
     const [total] = aggregate(rows, [managers[0]], { events: [2], countPrejoinGws: false });
-    expect(total.net).toBe(80);
+    expect(total.points).toBe(80);
   });
 });
 
@@ -236,18 +236,18 @@ describe('transfer costs come from FPL, not from us', () => {
     ];
     const table = weeklyTable(rows, managers, 1, OPTIONS);
     expect(table[0].entryId).toBe(1);
-    expect(table[0].net).toBe(88);
+    expect(table[0].points).toBe(88);
   });
 
   it('charges nothing for a Free Hit week', () => {
     const rows = [row({ entryId: 1, event: 1, grossPoints: 70, transferCost: 0, chipUsed: 'FH' })];
-    expect(weeklyTable(rows, managers, 1, OPTIONS)[0].net).toBe(70);
+    expect(weeklyTable(rows, managers, 1, OPTIONS)[0].points).toBe(70);
   });
 
   it('applies whatever cost FPL reports, without inferring it', () => {
     // Two free transfers banked, three made: FPL charges for one, not three.
     const rows = [row({ entryId: 1, event: 1, grossPoints: 70, transferCost: 4 })];
-    expect(weeklyTable(rows, managers, 1, OPTIONS)[0].net).toBe(66);
+    expect(weeklyTable(rows, managers, 1, OPTIONS)[0].points).toBe(66);
   });
 
   it('surfaces the chip that was played', () => {

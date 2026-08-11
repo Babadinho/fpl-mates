@@ -29,7 +29,7 @@ export interface ManagerRef {
 export interface Aggregate {
   entryId: number;
   /** Gross minus transfer cost, summed. The number every table sorts on. */
-  net: number;
+  points: number;
   gross: number;
   /** Transfer points deducted, summed. Always positive. */
   hits: number;
@@ -38,7 +38,7 @@ export interface Aggregate {
   overallRank: number | null;
   /** How many gameweeks contributed. */
   gameweeks: number;
-  /** Highest single-gameweek net score in the range. */
+  /** Highest single-gameweek score in the range, after costs. */
   best: number;
   /** Chip played — only meaningful over a single gameweek. */
   chip: string | null;
@@ -52,13 +52,14 @@ export interface RankedRow extends Aggregate {
 }
 
 /**
- * NET points, not gross.
+ * A manager's score for a gameweek, AFTER transfer costs.
  *
- * A manager scoring 80 with a -8 hit finishes below one scoring 74 clean.
- * Using gross is the single most common bug in homemade FPL leaderboards
- * (gotcha 4), and it is the one that starts arguments.
+ * Named explicitly rather than just `points`, because FPL's own `points` field
+ * means the opposite — it is gross, before hits. A manager scoring 80 with a
+ * -8 finishes below one scoring 74 clean; using gross is the single most
+ * common bug in homemade FPL leaderboards (gotcha 4).
  */
-export function netPoints(row: Pick<ScoreRow, 'grossPoints' | 'transferCost'>): number {
+export function pointsAfterCost(row: Pick<ScoreRow, 'grossPoints' | 'transferCost'>): number {
   return row.grossPoints - row.transferCost;
 }
 
@@ -86,7 +87,7 @@ export function aggregate(
   for (const m of managers) {
     totals.set(m.entryId, {
       entryId: m.entryId,
-      net: 0,
+      points: 0,
       gross: 0,
       hits: 0,
       bench: 0,
@@ -106,13 +107,13 @@ export function aggregate(
     if (eventFilter && !eventFilter.has(row.event)) continue;
     if (!counts(row, manager, options.countPrejoinGws)) continue;
 
-    const net = netPoints(row);
-    acc.net += net;
+    const scored = pointsAfterCost(row);
+    acc.points += scored;
     acc.gross += row.grossPoints;
     acc.hits += row.transferCost;
     acc.bench += row.pointsOnBench;
     acc.gameweeks += 1;
-    acc.best = Math.max(acc.best, net);
+    acc.best = Math.max(acc.best, scored);
     // Rows are event-ordered, so the last write is the latest rank.
     if (row.overallRank !== null) acc.overallRank = row.overallRank;
     acc.chip = row.chipUsed ?? acc.chip;
@@ -124,8 +125,8 @@ export function aggregate(
 /** Compares two aggregates on a single rule. Negative = `a` ranks higher. */
 function applyRule(rule: TiebreakKey, a: Aggregate, b: Aggregate): number {
   switch (rule) {
-    case 'net':
-      return b.net - a.net;
+    case 'points':
+      return b.points - a.points;
     case 'hits':
       return a.hits - b.hits;
     case 'bench':
@@ -192,10 +193,10 @@ export function rank(
 
 export interface Winner {
   entryId: number;
-  net: number;
+  points: number;
   /** Co-winners when every rule was exhausted. Empty in the normal case. */
   tiedWith: number[];
-  /** The rule that settled it, or null if won outright on net points. */
+  /** The rule that settled it, or null if won outright on points. */
   decidedBy: TiebreakKey | null;
 }
 
@@ -219,7 +220,7 @@ export function declareWinner(
   if (runnerUp) {
     for (const rule of order) {
       if (applyRule(rule, winner, runnerUp) !== 0) {
-        decidedBy = rule === 'net' ? null : rule;
+        decidedBy = rule === 'points' ? null : rule;
         break;
       }
     }
@@ -227,7 +228,7 @@ export function declareWinner(
 
   return {
     entryId: winner.entryId,
-    net: winner.net,
+    points: winner.points,
     tiedWith: leaders.slice(1).map((r) => r.entryId),
     decidedBy,
   };
