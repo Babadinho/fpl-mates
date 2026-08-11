@@ -225,9 +225,14 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         title: `Gameweek ${event}`,
         meta: `${rows.length} manager${rows.length === 1 ? '' : 's'} · avg ${average}`,
         headers: ['Points', 'Hits', 'Bench'] as [string, string, string],
-        // Wording tracks the column header: it reads POINTS, so the footnote
-        // explains what those points already are rather than naming them again.
-        note: `Points are net of hits — gross points minus transfer cost. ${tiebreakNote}${prejoinNote}`,
+        // Plain English on purpose — this footnote exists to settle arguments,
+        // so it must be both understandable AND accurate. Free transfers bank
+        // up to five, and Wildcard/Free Hit weeks cost nothing, so "4 points
+        // per transfer" would be wrong often enough to cause the argument.
+        note:
+          `Points shown are your score after transfer costs. FPL takes 4 points for each ` +
+          `transfer beyond your free ones; Wildcard and Free Hit gameweeks cost nothing. ` +
+          `${tiebreakNote}${prejoinNote}`,
         rows: toUiRows(rows, (r) => [
           String(r.net),
           r.hits ? `−${r.hits}` : '—',

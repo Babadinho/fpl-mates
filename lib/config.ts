@@ -45,10 +45,10 @@ export type TiebreakKey = (typeof TIEBREAK_KEYS)[number];
 
 /** Plain-English rule names for the footnote under every table (section 10). */
 export const TIEBREAK_LABELS: Record<TiebreakKey, string> = {
-  net: 'highest net points',
-  hits: 'fewest hits taken',
-  bench: 'fewest points left on the bench',
-  overall_rank: 'better overall FPL rank',
+  net: 'the higher score',
+  hits: 'fewer points lost to transfers',
+  bench: 'fewer points left on the bench',
+  overall_rank: 'the better overall FPL rank',
 };
 
 /** Comma-separated tie-break rule keys, applied in order (section 4). */

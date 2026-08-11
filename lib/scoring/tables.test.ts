@@ -223,3 +223,35 @@ describe('rank', () => {
     expect(rank(totals, managers, ORDER)[0].manager.playerName).toBeTypeOf('string');
   });
 });
+
+describe('transfer costs come from FPL, not from us', () => {
+  // We never derive the cost from the transfer count. `event_transfers_cost`
+  // is FPL's own figure and already accounts for banked free transfers (up to
+  // five) and for chips that make transfers free. Recomputing it here would
+  // get Wildcard and Free Hit weeks wrong.
+  it('charges nothing for a Wildcard week with many transfers', () => {
+    const rows = [
+      row({ entryId: 1, event: 1, grossPoints: 88, transferCost: 0, chipUsed: 'WC' }),
+      row({ entryId: 2, event: 1, grossPoints: 84, transferCost: 0 }),
+    ];
+    const table = weeklyTable(rows, managers, 1, OPTIONS);
+    expect(table[0].entryId).toBe(1);
+    expect(table[0].net).toBe(88);
+  });
+
+  it('charges nothing for a Free Hit week', () => {
+    const rows = [row({ entryId: 1, event: 1, grossPoints: 70, transferCost: 0, chipUsed: 'FH' })];
+    expect(weeklyTable(rows, managers, 1, OPTIONS)[0].net).toBe(70);
+  });
+
+  it('applies whatever cost FPL reports, without inferring it', () => {
+    // Two free transfers banked, three made: FPL charges for one, not three.
+    const rows = [row({ entryId: 1, event: 1, grossPoints: 70, transferCost: 4 })];
+    expect(weeklyTable(rows, managers, 1, OPTIONS)[0].net).toBe(66);
+  });
+
+  it('surfaces the chip that was played', () => {
+    const rows = [row({ entryId: 1, event: 1, grossPoints: 70, chipUsed: 'BB' })];
+    expect(weeklyTable(rows, managers, 1, OPTIONS)[0].chip).toBe('BB');
+  });
+});
