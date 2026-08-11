@@ -116,18 +116,9 @@ export interface LeagueRoster {
  */
 export async function fetchLeagueRoster(leagueId = getConfig().leagueId): Promise<LeagueRoster> {
   const byEntry = new Map<number, LeagueMember>();
-  let leagueName = '';
-  let startEvent = 1;
 
-  // --- ranked members
-  for (let page = 1; ; page++) {
-    const parsed = leagueStandingsSchema.parse(
-      await getJson(`leagues-classic/${leagueId}/standings/?page_standings=${page}`),
-    );
-    leagueName = parsed.league.name;
-    startEvent = parsed.league.start_event;
-
-    for (const r of parsed.standings.results) {
+  const addRanked = (results: { entry: number; entry_name: string; player_name: string }[]) => {
+    for (const r of results) {
       byEntry.set(r.entry, {
         entryId: r.entry,
         entryName: r.entry_name,
@@ -136,23 +127,22 @@ export async function fetchLeagueRoster(leagueId = getConfig().leagueId): Promis
         joinedTime: null,
       });
     }
+  };
 
-    if (!parsed.standings.has_next) break;
-  }
-
-  // --- unranked members
-  for (let page = 1; ; page++) {
-    const parsed = leagueStandingsSchema.parse(
-      await getJson(`leagues-classic/${leagueId}/standings/?page_new_entries=${page}`),
-    );
-    const block = parsed.new_entries;
-    if (!block) break;
-
-    for (const r of block.results) {
-      const existing = byEntry.get(r.entry);
+  const addUnranked = (
+    results: {
+      entry: number;
+      entry_name: string;
+      player_first_name: string;
+      player_last_name: string;
+      joined_time: string;
+    }[],
+  ) => {
+    for (const r of results) {
       const joinedTime = new Date(r.joined_time);
+      const existing = byEntry.get(r.entry);
       if (existing) {
-        // Ranked already, but this is our only chance at joined_time.
+        // Already ranked, but this is our only chance at joined_time.
         existing.joinedTime ??= joinedTime;
       } else {
         byEntry.set(r.entry, {
@@ -164,11 +154,38 @@ export async function fetchLeagueRoster(leagueId = getConfig().leagueId): Promis
         });
       }
     }
+  };
 
-    if (!block.has_next) break;
+  // One request covers page 1 of BOTH blocks — they arrive in the same
+  // response, so asking twice would just be a wasted round trip upstream.
+  const first = leagueStandingsSchema.parse(await getJson(`leagues-classic/${leagueId}/standings/`));
+  addRanked(first.standings.results);
+  addUnranked(first.new_entries?.results ?? []);
+
+  // Extra requests only when a block actually overflows (section 11, item 2).
+  let hasMoreRanked = first.standings.has_next;
+  for (let page = 2; hasMoreRanked; page++) {
+    const next = leagueStandingsSchema.parse(
+      await getJson(`leagues-classic/${leagueId}/standings/?page_standings=${page}`),
+    );
+    addRanked(next.standings.results);
+    hasMoreRanked = next.standings.has_next;
   }
 
-  return { leagueName, startEvent, members: [...byEntry.values()] };
+  let hasMoreUnranked = first.new_entries?.has_next ?? false;
+  for (let page = 2; hasMoreUnranked; page++) {
+    const next = leagueStandingsSchema.parse(
+      await getJson(`leagues-classic/${leagueId}/standings/?page_new_entries=${page}`),
+    );
+    addUnranked(next.new_entries?.results ?? []);
+    hasMoreUnranked = next.new_entries?.has_next ?? false;
+  }
+
+  return {
+    leagueName: first.league.name,
+    startEvent: first.league.start_event,
+    members: [...byEntry.values()],
+  };
 }
 
 /** Per-gameweek history for one manager. The source of truth for scoring. */

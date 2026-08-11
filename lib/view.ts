@@ -1,0 +1,401 @@
+/**
+ * Builds the whole page payload.
+ *
+ * Reads either the checked-in fixtures (USE_FIXTURES=1) or Postgres, then runs
+ * the same scoring functions over either. The client component receives plain
+ * data and only decides which tab to show — no fetching, no scoring.
+ */
+import { asc, eq } from 'drizzle-orm';
+import { getConfig, TIEBREAK_LABELS } from './config';
+import { getDb } from './db';
+import { gameweeks, league, managers as managersTable, gwScores } from './db/schema';
+import { mockLeague } from './fixtures/mock';
+import { groupByMonth, monthLabel, monthShortLabel } from './scoring/month';
+import {
+  declareWinner,
+  monthlyTable,
+  seasonTable,
+  weeklyTable,
+  type ManagerRef,
+  type RankedRow,
+  type ScoreRow,
+} from './scoring/tables';
+
+export interface UiRow {
+  entryId: number;
+  rank: string;
+  name: string;
+  team: string;
+  chip: string | null;
+  isLeader: boolean;
+  shared: boolean;
+  c0: string;
+  c1: string;
+  c2: string;
+}
+
+export interface TableView {
+  title: string;
+  meta: string;
+  headers: [string, string, string];
+  note: string;
+  rows: UiRow[];
+}
+
+export interface HeroCell {
+  label: string;
+  name: string;
+  value: string;
+  sub: string;
+}
+
+export interface LeaderboardView {
+  leagueName: string;
+  seasonLabel: string;
+  eyebrow: string;
+  showBench: boolean;
+  seasonStarted: boolean;
+  status: { settled: boolean; label: string; sub: string; polled: string };
+  hero: { week: HeroCell; month: HeroCell; season: HeroCell } | null;
+  weekly: { event: number; label: string; view: TableView }[];
+  monthly: { key: string; label: string; short: string; view: TableView }[];
+  season: TableView;
+  history: {
+    weekly: { gw: string; name: string; pts: number }[];
+    monthly: { month: string; name: string; pts: number }[];
+  };
+  emptyState: { headline: string; detail: string } | null;
+  whatsappEnabled: boolean;
+  totalGameweeks: number;
+}
+
+interface SourceData {
+  leagueName: string;
+  managers: ManagerRef[];
+  scores: ScoreRow[];
+  weeks: { event: number; deadlineTime: Date; monthKey: string; dataChecked: boolean; finished: boolean }[];
+  lastPolled: Date | null;
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/* ------------------------------------------------------------- sources */
+
+function fromFixtures(timezone: string): SourceData {
+  const mock = mockLeague();
+  return {
+    leagueName: mock.leagueName,
+    managers: mock.managers,
+    scores: mock.scores,
+    weeks: mock.gameweeks.map((g) => ({
+      event: g.event,
+      deadlineTime: new Date(g.deadlineTime),
+      monthKey: new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit' })
+        .format(new Date(g.deadlineTime))
+        .slice(0, 7),
+      dataChecked: g.event <= mock.played,
+      finished: g.event <= mock.played,
+    })),
+    lastPolled: new Date(Date.now() - 18 * 60 * 1000),
+  };
+}
+
+async function fromDatabase(): Promise<SourceData> {
+  const cfg = getConfig();
+  const db = getDb();
+
+  const [weeks, roster, scores, leagueRows] = await Promise.all([
+    db.select().from(gameweeks).orderBy(asc(gameweeks.event)),
+    db.select().from(managersTable).where(eq(managersTable.active, true)),
+    db.select().from(gwScores),
+    db.select().from(league).where(eq(league.id, cfg.leagueId)).limit(1),
+  ]);
+
+  const processed = weeks.map((w) => w.processedAt).filter((d): d is Date => d !== null);
+
+  return {
+    leagueName: leagueRows[0]?.name ?? 'FPL Gaffer',
+    managers: roster.map((m) => ({
+      entryId: m.entryId,
+      playerName: m.playerName,
+      entryName: m.entryName,
+      joinedGw: m.joinedGw,
+    })),
+    scores: scores.map((s) => ({
+      entryId: s.entryId,
+      event: s.event,
+      grossPoints: s.grossPoints,
+      transferCost: s.transferCost,
+      pointsOnBench: s.pointsOnBench,
+      overallRank: s.overallRank,
+      chipUsed: s.chipUsed,
+    })),
+    weeks: weeks.map((w) => ({
+      event: w.event,
+      deadlineTime: w.deadlineTime,
+      monthKey: w.monthKey,
+      dataChecked: w.dataChecked,
+      finished: w.finished,
+    })),
+    lastPolled: processed.length ? new Date(Math.max(...processed.map((d) => d.getTime()))) : null,
+  };
+}
+
+/* -------------------------------------------------------------- helpers */
+
+function toUiRows(rows: RankedRow[], cells: (row: RankedRow) => [string, string, string]): UiRow[] {
+  return rows.map((row) => ({
+    entryId: row.entryId,
+    rank: pad(row.rank),
+    name: row.manager.playerName,
+    team: row.manager.entryName,
+    chip: row.chip,
+    isLeader: row.rank === 1,
+    shared: row.shared,
+    c0: cells(row)[0],
+    c1: cells(row)[1],
+    c2: cells(row)[2],
+  }));
+}
+
+function relativeTime(date: Date | null): string {
+  if (!date) return 'never';
+  const minutes = Math.round((Date.now() - date.getTime()) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+/** "2026/27" from the opening deadline. Seasons always straddle two years. */
+function seasonLabelFrom(firstDeadline: Date | undefined): string {
+  if (!firstDeadline) return '';
+  const startYear = firstDeadline.getUTCFullYear();
+  return `${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`;
+}
+
+function deadlineLabel(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+/* ---------------------------------------------------------------- build */
+
+export async function getLeaderboardView(): Promise<LeaderboardView> {
+  const cfg = getConfig();
+  const tz = cfg.rules.timezone;
+  const source = cfg.useFixtures ? fromFixtures(tz) : await fromDatabase();
+
+  const options = {
+    countPrejoinGws: cfg.rules.countPrejoinGws,
+    tiebreakOrder: cfg.rules.tiebreakOrder,
+  };
+
+  const settledWeeks = source.weeks.filter((w) => w.dataChecked).map((w) => w.event);
+  const lastSettled = settledWeeks.at(-1) ?? null;
+  const seasonStarted = lastSettled !== null;
+
+  const tiebreakNote = `Ties break on ${cfg.rules.tiebreakOrder
+    .slice(1)
+    .map((k) => TIEBREAK_LABELS[k])
+    .join(', then ')}, then the win is shared.`;
+  const prejoinNote = cfg.rules.countPrejoinGws
+    ? ''
+    : ' Managers score only from the gameweek they joined.';
+
+  /* ---- weekly */
+  const weekly = settledWeeks.map((event) => {
+    const rows = weeklyTable(source.scores, source.managers, event, options);
+    const average = rows.length
+      ? Math.round(rows.reduce((sum, r) => sum + r.net, 0) / rows.length)
+      : 0;
+
+    return {
+      event,
+      label: `GW${event}`,
+      view: {
+        title: `Gameweek ${event}`,
+        meta: `${rows.length} manager${rows.length === 1 ? '' : 's'} · avg ${average}`,
+        headers: ['Net', 'Hits', 'Bench'] as [string, string, string],
+        note: `Net points = gross points − transfer cost. ${tiebreakNote}`,
+        rows: toUiRows(rows, (r) => [
+          String(r.net),
+          r.hits ? `−${r.hits}` : '—',
+          cfg.site.showBenchColumn ? String(r.bench) : '—',
+        ]),
+      },
+    };
+  });
+
+  /* ---- monthly */
+  const months = groupByMonth(
+    source.weeks.filter((w) => w.dataChecked),
+    tz,
+  );
+  const allMonths = groupByMonth(source.weeks, tz);
+
+  const monthly = [...months.entries()].map(([key, weeksInMonth]) => {
+    const events = weeksInMonth.map((w) => w.event);
+    const rows = monthlyTable(source.scores, source.managers, events, options);
+    const scheduled = allMonths.get(key)?.length ?? events.length;
+    const complete = events.length === scheduled;
+
+    return {
+      key,
+      label: monthLabel(key, tz),
+      short: monthShortLabel(key, tz),
+      view: {
+        title: monthLabel(key, tz),
+        meta: `GW ${events[0]}–${events.at(-1)} · ${complete ? 'settled' : 'in progress'}`,
+        headers: ['Net', 'GWs', 'Avg'] as [string, string, string],
+        note:
+          `A gameweek belongs to the month of its FPL deadline, so months hold unequal numbers ` +
+          `of gameweeks — ${monthLabel(key, tz)} holds ${scheduled}. ${tiebreakNote}`,
+        rows: toUiRows(rows, (r) => [
+          String(r.net),
+          String(r.gameweeks),
+          String(r.gameweeks ? Math.round(r.net / r.gameweeks) : 0),
+        ]),
+      },
+    };
+  });
+
+  /* ---- season */
+  const seasonRows = seasonTable(
+    source.scores.filter((s) => settledWeeks.includes(s.event)),
+    source.managers,
+    options,
+  );
+  const season: TableView = {
+    title: 'Season table',
+    meta: seasonStarted
+      ? `After GW ${lastSettled} of ${source.weeks.length}`
+      : 'Not started',
+    headers: ['Total', 'Hits', 'Best GW'],
+    note:
+      `Mirrors the official FPL standings, recomputed from stored per-gameweek rows so any ` +
+      `rule change applies retroactively.${prejoinNote}`,
+    rows: toUiRows(seasonRows, (r) => [String(r.net), r.hits ? `−${r.hits}` : '—', String(r.best)]),
+  };
+
+  /* ---- history */
+  const nameOf = (entryId: number) =>
+    source.managers.find((m) => m.entryId === entryId)?.playerName ?? 'Unknown';
+
+  const history = {
+    weekly: [...weekly]
+      .reverse()
+      .map(({ event }) => {
+        const rows = weeklyTable(source.scores, source.managers, event, options);
+        const winner = declareWinner(rows, cfg.rules.tiebreakOrder);
+        return winner
+          ? { gw: `GW ${pad(event)}`, name: nameOf(winner.entryId), pts: winner.net }
+          : null;
+      })
+      .filter((x): x is { gw: string; name: string; pts: number } => x !== null),
+    monthly: [...monthly]
+      .reverse()
+      .map(({ key, short }) => {
+        const events = months.get(key)!.map((w) => w.event);
+        const winner = declareWinner(
+          monthlyTable(source.scores, source.managers, events, options),
+          cfg.rules.tiebreakOrder,
+        );
+        return winner ? { month: short, name: nameOf(winner.entryId), pts: winner.net } : null;
+      })
+      .filter((x): x is { month: string; name: string; pts: number } => x !== null),
+  };
+
+  /* ---- hero + status */
+  // The next gameweek is the first UNSETTLED one, not simply the next future
+  // deadline. During a round that has kicked off but not settled, the useful
+  // answer is the round we are waiting on.
+  const nextWeek = source.weeks.find((w) => !w.dataChecked);
+  const provisional = source.weeks.find((w) => w.finished && !w.dataChecked);
+
+  let hero: LeaderboardView['hero'] = null;
+  if (seasonStarted && lastSettled !== null) {
+    const weekWinner = declareWinner(
+      weeklyTable(source.scores, source.managers, lastSettled, options),
+      cfg.rules.tiebreakOrder,
+    );
+    const currentMonthKey = source.weeks.find((w) => w.event === lastSettled)!.monthKey;
+    const monthEvents = months.get(currentMonthKey)!.map((w) => w.event);
+    const monthRows = monthlyTable(source.scores, source.managers, monthEvents, options);
+    const monthLeader = monthRows[0];
+    const seasonLeader = seasonRows[0];
+
+    hero = {
+      week: {
+        label: `Gameweek ${lastSettled} winner`,
+        name: weekWinner ? nameOf(weekWinner.entryId) : '—',
+        value: weekWinner ? `${weekWinner.net} pts` : '—',
+        sub: weekWinner?.decidedBy
+          ? `won on ${TIEBREAK_LABELS[weekWinner.decidedBy]}`
+          : weekWinner?.tiedWith.length
+            ? `shared with ${weekWinner.tiedWith.length} other`
+            : 'won outright',
+      },
+      month: {
+        label: `${monthLabel(currentMonthKey, tz)} — leading`,
+        name: monthLeader ? nameOf(monthLeader.entryId) : '—',
+        value: monthLeader ? `${monthLeader.net} pts` : '—',
+        sub: monthLeader ? `across ${monthLeader.gameweeks} gameweeks` : '',
+      },
+      season: {
+        label: 'Season leader',
+        name: seasonLeader ? nameOf(seasonLeader.entryId) : '—',
+        value: seasonLeader ? `${seasonLeader.net} pts` : '—',
+        sub: `after ${lastSettled} of ${source.weeks.length}`,
+      },
+    };
+  }
+
+  return {
+    leagueName: cfg.site.leagueName ?? source.leagueName,
+    // A Premier League season always spans two calendar years, so the label is
+    // derived from the OPENING year — deriving it from the last loaded
+    // gameweek would read "2026/26" whenever only the early rounds are present.
+    seasonLabel: cfg.site.seasonLabel ?? seasonLabelFrom(source.weeks[0]?.deadlineTime),
+    eyebrow: cfg.site.eyebrow,
+    showBench: cfg.site.showBenchColumn,
+    seasonStarted,
+    status: {
+      settled: seasonStarted && !provisional,
+      label: provisional
+        ? `GW ${provisional.event} PROVISIONAL`
+        : seasonStarted
+          ? `GW ${lastSettled} SETTLED`
+          : 'PRE-SEASON',
+      sub: provisional
+        ? 'bonus not yet applied'
+        : nextWeek
+          ? `GW ${nextWeek.event} deadline ${deadlineLabel(nextWeek.deadlineTime, tz)}`
+          : 'season complete',
+      polled: relativeTime(source.lastPolled),
+    },
+    hero,
+    weekly,
+    monthly,
+    season,
+    history,
+    emptyState: seasonStarted
+      ? null
+      : {
+          headline: 'No gameweeks scored yet',
+          detail: nextWeek
+            ? `Season starts with GW${nextWeek.event} on ${deadlineLabel(nextWeek.deadlineTime, tz)}. Weekly and monthly tables appear here once bonus points are applied and the gameweek settles.`
+            : 'Waiting for the fixture list.',
+        },
+    whatsappEnabled: cfg.whatsapp !== null,
+    totalGameweeks: source.weeks.length,
+  };
+}

@@ -149,6 +149,12 @@ const schema = z.object({
   /** If set, /api/poll requires `Authorization: Bearer <secret>`. */
   CRON_SECRET: z.string().min(1).optional(),
 
+  /**
+   * Render the checked-in mock league instead of reading Postgres. Lets the
+   * app be run and reviewed without a database or a live season.
+   */
+  USE_FIXTURES: boolEnv(false),
+
   // ---- WhatsApp (absent = publisher disabled, web only) ------------------
   WHATSAPP_PHONE_NUMBER_ID: z.string().min(1).optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().min(1).optional(),
@@ -206,6 +212,9 @@ function load() {
     },
 
     cronSecret: env.CRON_SECRET,
+
+    /** Render the checked-in mock league instead of reading Postgres. */
+    useFixtures: env.USE_FIXTURES,
 
     /** Null when any required credential is absent — the web app runs regardless. */
     whatsapp:

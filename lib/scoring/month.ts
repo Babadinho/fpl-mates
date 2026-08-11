@@ -42,11 +42,18 @@ export function monthLabel(monthKey: string, timezone: string): string {
   }).format(date);
 }
 
-/** "2026-08" → "Aug", for the compact history column. */
+/**
+ * "2026-08" → "Aug", for the compact history column.
+ *
+ * Trimmed to three characters because en-GB renders September as "Sept",
+ * which sits a character wider than every other month in the column.
+ */
 export function monthShortLabel(monthKey: string, timezone: string): string {
   const [year, month] = monthKey.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, 15, 12));
-  return new Intl.DateTimeFormat('en-GB', { timeZone: timezone, month: 'short' }).format(date);
+  return new Intl.DateTimeFormat('en-GB', { timeZone: timezone, month: 'short' })
+    .format(date)
+    .slice(0, 3);
 }
 
 export interface DeadlineLike {

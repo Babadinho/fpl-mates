@@ -91,3 +91,14 @@ describe('joinedGameweek', () => {
     expect(joinedGameweek(null, events)).toBe(1);
   });
 });
+
+describe('monthShortLabel', () => {
+  it('keeps every month to three characters', async () => {
+    const { monthShortLabel } = await import('./month');
+    const keys = Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`);
+    const labels = keys.map((k) => monthShortLabel(k, TZ));
+    expect(labels.every((l) => l.length === 3)).toBe(true);
+    // en-GB renders September as "Sept" without the trim.
+    expect(monthShortLabel('2026-09', TZ)).toBe('Sep');
+  });
+});

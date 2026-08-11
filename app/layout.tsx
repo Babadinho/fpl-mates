@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Bebas_Neue, JetBrains_Mono, Manrope } from 'next/font/google';
 import { getConfig } from '@/lib/config';
-import { getSeasonState } from '@/lib/db/queries';
+import { getLeaderboardView } from '@/lib/view';
 import './globals.css';
 
 const bebas = Bebas_Neue({ weight: '400', subsets: ['latin'], variable: '--font-bebas' });
@@ -11,7 +11,7 @@ const jetbrains = JetBrains_Mono({ weight: ['400', '500'], subsets: ['latin'], v
 export async function generateMetadata(): Promise<Metadata> {
   // Falls back to the league name stored by the poller, so the tab title is
   // right without anyone setting LEAGUE_DISPLAY_NAME.
-  const { leagueName, seasonLabel } = await getSeasonState();
+  const { leagueName, seasonLabel } = await getLeaderboardView();
   return {
     title: `${leagueName} · ${seasonLabel}`,
     description: 'Weekly, monthly and season tables for a Fantasy Premier League mini-league.',
