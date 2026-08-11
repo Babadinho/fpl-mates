@@ -1,0 +1,222 @@
+/**
+ * Single source of truth for every configurable value.
+ *
+ * Rules this file enforces (technical-brief section 11):
+ *   1. `process.env` is read HERE AND NOWHERE ELSE in the codebase.
+ *   2. The app boots with only FPL_LEAGUE_ID and DATABASE_URL set.
+ *   3. A missing optional variable degrades a feature; it never crashes the poller.
+ *
+ * Server-side only — never import this from a client component. Theme values
+ * reach the browser as CSS variables rendered into the server HTML.
+ */
+import { z } from 'zod';
+
+/* ---------------------------------------------------------------- helpers */
+
+/** Accepts true/1/yes/on (and the inverse), case-insensitive. */
+const boolEnv = (fallback: boolean) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (v === undefined || v.trim() === '') return fallback;
+      const s = v.trim().toLowerCase();
+      if (['1', 'true', 'yes', 'y', 'on'].includes(s)) return true;
+      if (['0', 'false', 'no', 'n', 'off'].includes(s)) return false;
+      throw new Error(`expected a boolean, got "${v}"`);
+    });
+
+/**
+ * CSS colours are interpolated into style attributes, so restrict the charset.
+ * A self-hoster can only attack themselves here, but there is no reason to
+ * allow `;` or `<` to escape the declaration.
+ */
+const cssColor = (fallback: string) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined || v.trim() === '' ? fallback : v.trim()))
+    .refine((v) => /^[a-zA-Z0-9#%.,()/\s-]+$/.test(v), {
+      message: 'contains characters not valid in a CSS colour',
+    });
+
+const TIEBREAK_KEYS = ['net', 'hits', 'bench', 'overall_rank'] as const;
+export type TiebreakKey = (typeof TIEBREAK_KEYS)[number];
+
+/** Comma-separated tie-break rule keys, applied in order (section 4). */
+const tiebreakOrder = z
+  .string()
+  .optional()
+  .transform((v) =>
+    (v === undefined || v.trim() === '' ? 'net,hits,bench,overall_rank' : v)
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  )
+  .refine((keys) => keys.length > 0 && keys.every((k) => TIEBREAK_KEYS.includes(k as TiebreakKey)), {
+    message: `must be a comma-separated subset of: ${TIEBREAK_KEYS.join(', ')}`,
+  })
+  .refine((keys) => keys[0] === 'net', {
+    message: 'must start with "net" — total points always decides first',
+  })
+  .transform((keys) => keys as TiebreakKey[]);
+
+const timezone = z
+  .string()
+  .optional()
+  .transform((v) => (v === undefined || v.trim() === '' ? 'Europe/London' : v.trim()))
+  .refine(
+    (tz) => {
+      try {
+        new Intl.DateTimeFormat('en-GB', { timeZone: tz });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'not a recognised IANA timezone (e.g. Europe/London)' },
+  );
+
+/* ----------------------------------------------------------------- schema */
+
+const schema = z.object({
+  // ---- Required ----------------------------------------------------------
+  // An unset variable and an empty one are the same mistake, so normalise ''
+  // to undefined — otherwise z.coerce turns '' into 0 and reports "too small".
+  FPL_LEAGUE_ID: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.coerce
+      .number({ message: 'must be the number from your mini-league URL, e.g. 123456' })
+      .int('must be a whole number')
+      .positive('must be greater than zero'),
+  ),
+  DATABASE_URL: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.url({ message: 'is required — a Postgres connection string' }),
+  ),
+
+  // ---- Database ----------------------------------------------------------
+  /** Direct (non-pooled) connection. Migrations only. Falls back to DATABASE_URL. */
+  DATABASE_URL_UNPOOLED: z.url().optional(),
+
+  // ---- Identity and copy -------------------------------------------------
+  /** Overrides the league name from the API. Undefined = use whatever FPL returns. */
+  LEAGUE_DISPLAY_NAME: z.string().min(1).optional(),
+  /** e.g. "2026/27". Undefined = derived from the bootstrap gameweek deadlines. */
+  SEASON_LABEL: z.string().min(1).optional(),
+  /** Small uppercase line above the league name in the header. */
+  SITE_EYEBROW: z
+    .string()
+    .optional()
+    .transform((v) => (v?.trim() ? v.trim() : 'Fantasy Premier League')),
+
+  // ---- Scoring rules -----------------------------------------------------
+  TIMEZONE: timezone,
+  TIEBREAK_ORDER: tiebreakOrder,
+  /** Do gameweeks before a manager joined the league count? (gotcha 5) */
+  COUNT_PREJOIN_GWS: boolEnv(false),
+
+  // ---- Theme (mapped onto the CSS variables in section 10) ---------------
+  ACCENT_COLOR: cssColor('oklch(0.42 0.17 305)'),
+  POP_COLOR: cssColor('oklch(0.72 0.19 145)'),
+  ACCENT_COLOR_DARK: cssColor('oklch(0.72 0.19 145)'),
+  POP_COLOR_DARK: cssColor('oklch(0.78 0.16 100)'),
+  /** Show the bench-points column in tables (the prototype's `showBench` prop). */
+  SHOW_BENCH_COLUMN: boolEnv(true),
+
+  // ---- Poller ------------------------------------------------------------
+  FPL_BASE_URL: z
+    .string()
+    .optional()
+    .transform((v) => (v?.trim() ? v.trim().replace(/\/+$/, '') : 'https://fantasy.premierleague.com/api')),
+  /** Descriptive UA, per gotcha 3. */
+  FPL_USER_AGENT: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || `fpl-gaffer/${process.env.npm_package_version ?? '0.1.0'} (+https://github.com/Babadinho/fpl-gaffer)`),
+  /** Parallel entry-history requests. Kept low to stay a polite client. */
+  POLL_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(4),
+  /** bootstrap-static is large and near-static; cache it hard. */
+  BOOTSTRAP_CACHE_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+  /** If set, /api/poll requires `Authorization: Bearer <secret>`. */
+  CRON_SECRET: z.string().min(1).optional(),
+
+  // ---- WhatsApp (absent = publisher disabled, web only) ------------------
+  WHATSAPP_PHONE_NUMBER_ID: z.string().min(1).optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().min(1).optional(),
+  WHATSAPP_RECIPIENT: z.string().min(1).optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().min(1).optional(),
+});
+
+/* ----------------------------------------------------------------- export */
+
+function load() {
+  const parsed = schema.safeParse(process.env);
+
+  if (!parsed.success) {
+    const lines = parsed.error.issues.map((i) => `  ${i.path.join('.') || '(root)'}: ${i.message}`);
+    throw new Error(
+      `Invalid environment configuration:\n${lines.join('\n')}\n\n` +
+        `See .env.example for every supported variable. Only FPL_LEAGUE_ID and ` +
+        `DATABASE_URL are required.`,
+    );
+  }
+
+  const env = parsed.data;
+
+  return Object.freeze({
+    leagueId: env.FPL_LEAGUE_ID,
+
+    db: {
+      url: env.DATABASE_URL,
+      migrationUrl: env.DATABASE_URL_UNPOOLED ?? env.DATABASE_URL,
+    },
+
+    site: {
+      leagueName: env.LEAGUE_DISPLAY_NAME, // undefined = fall back to the API's league.name
+      seasonLabel: env.SEASON_LABEL, // undefined = derive from deadlines
+      eyebrow: env.SITE_EYEBROW,
+      showBenchColumn: env.SHOW_BENCH_COLUMN,
+    },
+
+    theme: {
+      light: { accent: env.ACCENT_COLOR, pop: env.POP_COLOR },
+      dark: { accent: env.ACCENT_COLOR_DARK, pop: env.POP_COLOR_DARK },
+    },
+
+    rules: {
+      timezone: env.TIMEZONE,
+      tiebreakOrder: env.TIEBREAK_ORDER,
+      countPrejoinGws: env.COUNT_PREJOIN_GWS,
+    },
+
+    fpl: {
+      baseUrl: env.FPL_BASE_URL,
+      userAgent: env.FPL_USER_AGENT,
+      concurrency: env.POLL_CONCURRENCY,
+      bootstrapCacheHours: env.BOOTSTRAP_CACHE_HOURS,
+    },
+
+    cronSecret: env.CRON_SECRET,
+
+    /** Null when any required credential is absent — the web app runs regardless. */
+    whatsapp:
+      env.WHATSAPP_PHONE_NUMBER_ID && env.WHATSAPP_ACCESS_TOKEN && env.WHATSAPP_RECIPIENT
+        ? {
+            phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
+            accessToken: env.WHATSAPP_ACCESS_TOKEN,
+            recipient: env.WHATSAPP_RECIPIENT,
+            verifyToken: env.WHATSAPP_VERIFY_TOKEN,
+          }
+        : null,
+  });
+}
+
+export type Config = ReturnType<typeof load>;
+
+let cached: Config | undefined;
+
+/** Parsed once per process, then reused. */
+export function getConfig(): Config {
+  return (cached ??= load());
+}
