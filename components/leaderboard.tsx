@@ -66,15 +66,13 @@ function Table({ view }: { view: TableView }) {
   return (
     <section className="pt-[26px]">
       {/*
-        Title and meta share a baseline row at every width, per section 10.
-        On a 412px phone that only fits if the display type gives up a few
-        pixels and the meta is kept off a second line.
+        Section 10 puts the title and meta on a common baseline, which holds
+        from 640px up. On a phone they stack instead, so the display type keeps
+        its full 32px rather than shrinking to share the row.
       */}
-      <div className="flex items-baseline justify-between gap-3 pb-4 sm:gap-6">
-        <h2 className="display m-0 text-[31px] tracking-[0.02em] sm:text-[32px]">{view.title}</h2>
-        <div className="shrink-0 font-mono text-[11px] whitespace-nowrap text-dim">
-          {view.meta}
-        </div>
+      <div className="flex flex-col items-start gap-2.5 pb-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
+        <h2 className="display m-0 text-[32px] tracking-[0.02em]">{view.title}</h2>
+        <div className="font-mono text-[11px] whitespace-nowrap text-dim">{view.meta}</div>
       </div>
 
       <div className={`${GRID} border-b border-line px-3.5 pb-2.5`}>

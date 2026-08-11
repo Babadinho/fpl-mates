@@ -224,8 +224,10 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       view: {
         title: `Gameweek ${event}`,
         meta: `${rows.length} manager${rows.length === 1 ? '' : 's'} · avg ${average}`,
-        headers: ['Net', 'Hits', 'Bench'] as [string, string, string],
-        note: `Net points = gross points − transfer cost. ${tiebreakNote}`,
+        headers: ['Points', 'Hits', 'Bench'] as [string, string, string],
+        // Wording tracks the column header: it reads POINTS, so the footnote
+        // explains what those points already are rather than naming them again.
+        note: `Points are net of hits — gross points minus transfer cost. ${tiebreakNote}${prejoinNote}`,
         rows: toUiRows(rows, (r) => [
           String(r.net),
           r.hits ? `−${r.hits}` : '—',
@@ -255,7 +257,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       view: {
         title: monthLabel(key, tz),
         meta: `GW ${events[0]}–${events.at(-1)} · ${complete ? 'settled' : 'in progress'}`,
-        headers: ['Net', 'GWs', 'Avg'] as [string, string, string],
+        headers: ['Points', 'GWs', 'Avg'] as [string, string, string],
         note:
           `A gameweek belongs to the month of its FPL deadline, so months hold unequal numbers ` +
           `of gameweeks — ${monthLabel(key, tz)} holds ${scheduled}. ${tiebreakNote}`,
