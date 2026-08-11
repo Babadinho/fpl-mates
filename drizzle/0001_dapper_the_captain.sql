@@ -1,0 +1,1 @@
+ALTER TABLE "managers" ADD COLUMN "joined_time" timestamp with time zone;

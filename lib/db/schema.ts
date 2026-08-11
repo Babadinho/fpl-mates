@@ -16,6 +16,18 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 
+/**
+ * The league itself. One row — this instance serves one league (section 11,
+ * item 4). Persisted so the page can show the real league name without an
+ * env override, and without calling the API at request time.
+ */
+export const league = pgTable('league', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+  startEvent: smallint('start_event').notNull().default(1),
+  syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Members of the mini-league, as discovered from the standings endpoint. */
 export const managers = pgTable('managers', {
   /** FPL manager ID (`entry` in the standings response). The join key. */
@@ -25,11 +37,16 @@ export const managers = pgTable('managers', {
   /** Their real name. */
   playerName: text('player_name').notNull(),
   /**
-   * First gameweek at which we observed them in the league standings.
-   * The API exposes no join date, so this is derived by the poller — which is
-   * exact provided polling starts before GW1. See gotcha 5.
+   * First gameweek that counts for them, derived from `joined_time` — the
+   * first gameweek whose deadline falls after they joined. See gotcha 5.
    */
   joinedGw: smallint('joined_gw').notNull(),
+  /**
+   * When they joined the league. Supplied by the API only while a manager is
+   * unranked (`new_entries`); it is gone once they appear in the standings,
+   * so it is captured on first sight and never overwritten.
+   */
+  joinedTime: timestamp('joined_time', { withTimezone: true }),
   /** False once they leave the league; their historical rows are kept. */
   active: boolean('active').notNull().default(true),
   firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
