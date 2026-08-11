@@ -65,9 +65,16 @@ function Row({ row }: { row: UiRow }) {
 function Table({ view }: { view: TableView }) {
   return (
     <section className="pt-[26px]">
-      <div className="flex items-baseline justify-between gap-6 pb-4">
-        <h2 className="display m-0 text-[32px] tracking-[0.02em]">{view.title}</h2>
-        <div className="font-mono text-[11px] text-dim">{view.meta}</div>
+      {/*
+        Title and meta share a baseline row at every width, per section 10.
+        On a 412px phone that only fits if the display type gives up a few
+        pixels and the meta is kept off a second line.
+      */}
+      <div className="flex items-baseline justify-between gap-3 pb-4 sm:gap-6">
+        <h2 className="display m-0 text-[31px] tracking-[0.02em] sm:text-[32px]">{view.title}</h2>
+        <div className="shrink-0 font-mono text-[11px] whitespace-nowrap text-dim">
+          {view.meta}
+        </div>
       </div>
 
       <div className={`${GRID} border-b border-line px-3.5 pb-2.5`}>
