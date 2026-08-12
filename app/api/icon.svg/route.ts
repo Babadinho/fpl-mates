@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { getConfig } from '@/lib/config';
 
 /**
@@ -15,7 +17,7 @@ import { getConfig } from '@/lib/config';
  */
 export const dynamic = 'force-dynamic';
 
-export function GET() {
+export function GET(request: Request) {
   const { theme } = getConfig();
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
@@ -31,11 +33,24 @@ export function GET() {
   <circle cx="368" cy="368" r="72" fill="var(--dot)"/>
 </svg>`;
 
+  // Revalidate every time rather than caching for an hour. The file is a few
+  // hundred bytes, so a conditional request costs nothing — and a long max-age
+  // means a theme change appears to do nothing until the cache expires, on top
+  // of the browser's own favicon cache.
+  const etag = `"${createHash('sha1').update(svg).digest('hex').slice(0, 16)}"`;
+
+  if (request.headers.get('if-none-match') === etag) {
+    return new Response(null, {
+      status: 304,
+      headers: { ETag: etag, 'Cache-Control': 'public, max-age=0, must-revalidate' },
+    });
+  }
+
   return new Response(svg, {
     headers: {
       'Content-Type': 'image/svg+xml',
-      // Fixed for the life of a deployment; env changes ship a new one.
-      'Cache-Control': 'public, max-age=3600, must-revalidate',
+      ETag: etag,
+      'Cache-Control': 'public, max-age=0, must-revalidate',
     },
   });
 }
