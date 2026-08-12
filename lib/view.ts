@@ -10,6 +10,7 @@ import { getConfig, TIEBREAK_LABELS } from './config';
 import { getDb } from './db';
 import { gameweeks, league, managers as managersTable, gwScores } from './db/schema';
 import { mockLeague } from './fixtures/mock';
+import { getLiveState, type LiveFixture } from './live';
 import { groupByMonth, monthLabel, monthShortLabel } from './scoring/month';
 import {
   declareWinner,
@@ -56,7 +57,7 @@ export interface LeaderboardView {
   showBench: boolean;
   showSearch: boolean;
   seasonStarted: boolean;
-  status: { settled: boolean; label: string; sub: string; polled: string };
+  status: { settled: boolean; live: boolean; label: string; sub: string; polled: string };
   hero: { week: HeroCell; month: HeroCell; season: HeroCell } | null;
   weekly: { event: number; label: string; view: TableView }[];
   monthly: { key: string; label: string; short: string; view: TableView }[];
@@ -65,6 +66,19 @@ export interface LeaderboardView {
     weekly: { gw: string; name: string; pts: number }[];
     monthly: { month: string; name: string; pts: number }[];
   };
+  live: {
+    event: number;
+    /** ISO deadline of the gameweek being counted down to. */
+    nextDeadline: string | null;
+    fixtures: LiveFixture[];
+    started: number;
+    total: number;
+    inPlay: boolean;
+    /** Provisional table for the gameweek in play, or null before kickoff. */
+    view: TableView | null;
+    note: string;
+    stateLabel: string;
+  } | null;
   emptyState: { headline: string; detail: string } | null;
   whatsappEnabled: boolean;
   totalGameweeks: number;
@@ -370,7 +384,58 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     };
   }
 
+  /* ---- live gameweek (never from fixtures, and never fatal) */
+  let live: LeaderboardView['live'] = null;
+
+  if (cfg.live.enabled && !cfg.useFixtures && nextWeek) {
+    try {
+      const state = await getLiveState(nextWeek.event);
+      if (state) {
+        const table = weeklyTable(state.rows, source.managers, nextWeek.event, options);
+
+        live = {
+          event: nextWeek.event,
+          nextDeadline: nextWeek.deadlineTime.toISOString(),
+          fixtures: state.fixtures,
+          started: state.started,
+          total: state.total,
+          inPlay: state.inPlay,
+          stateLabel: state.started === 0
+            ? 'Not started'
+            : `${state.finished} of ${state.total} played`,
+          note:
+            'Scores refresh while fixtures are in play. Bonus points are estimated from ' +
+            'live match scores and can still change — nothing counts, and no winner is ' +
+            'recorded, until FPL confirms the final points.',
+          view:
+            state.started === 0
+              ? null
+              : {
+                  title: `Gameweek ${nextWeek.event}`,
+                  meta: `In play · ${state.started} of ${state.total} fixtures started · provisional`,
+                  headers: ['Points', 'Est. bonus', 'Hits'],
+                  note:
+                    'Provisional. Bonus is estimated from live match scores and can still ' +
+                    'change; no winner is recorded until FPL confirms the final points.',
+                  rows: toUiRows(table, (r) => [
+                    String(r.points),
+                    `+${state.provisionalBonus.get(r.entryId) ?? 0}`,
+                    r.hits ? `−${r.hits}` : '—',
+                  ]),
+                },
+        };
+      }
+    } catch {
+      // Live is a nicety. If the API is unreachable or a shape has drifted, the
+      // settled tables must still render — this must never take the page down.
+      live = null;
+    }
+  }
+
+  const liveInPlay = live?.inPlay === true && live.view !== null;
+
   return {
+    live,
     leagueName: cfg.site.leagueName ?? source.leagueName,
     // A Premier League season always spans two calendar years, so the label is
     // derived from the OPENING year — deriving it from the last loaded
@@ -385,17 +450,24 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       (cfg.site.searchMode === 'auto' && source.managers.length > PAGE_SIZE),
     seasonStarted,
     status: {
-      settled: seasonStarted && !provisional,
-      label: provisional
-        ? `GW ${provisional.event} PROVISIONAL`
-        : seasonStarted
-          ? `GW ${lastSettled} SETTLED`
-          : 'PRE-SEASON',
-      sub: provisional
-        ? 'bonus not yet applied'
-        : nextWeek
-          ? `GW ${nextWeek.event} deadline ${deadlineLabel(nextWeek.deadlineTime, tz)}`
-          : 'season complete',
+      settled: seasonStarted && !provisional && !liveInPlay,
+      live: liveInPlay,
+      label: liveInPlay
+        ? `GW ${live!.event} LIVE · PROVISIONAL`
+        : provisional
+          ? `GW ${provisional.event} PROVISIONAL`
+          : seasonStarted
+            ? `GW ${lastSettled} SETTLED`
+            : 'PRE-SEASON',
+      sub: liveInPlay
+        ? seasonStarted
+          ? `GW ${lastSettled} final · GW ${live!.event} still playing`
+          : `GW ${live!.event} in play`
+        : provisional
+          ? 'waiting for FPL to apply bonus points'
+          : nextWeek
+            ? `GW ${nextWeek.event} deadline ${deadlineLabel(nextWeek.deadlineTime, tz)}`
+            : 'season complete',
       polled: relativeTime(source.lastPolled),
     },
     hero,

@@ -226,7 +226,17 @@ Only a genuine failure returns 500, so cron alerting stays meaningful.
 
 Schedule is `17 * * * *` rather than `0 * * * *`: section 11 asks for a
 per-instance offset within the hour so that many self-hosted instances do not
-all hit the API on the stroke.
+all hit the API on the stroke. Forks should change the minute.
+
+**The schedule is not configurable by environment variable.** Vercel reads
+`vercel.json` at deploy time and does not interpolate env vars into it, so the
+cron expression is literal and a self-hoster edits the file. Everything the
+poller does at runtime — concurrency, cache duration, tie-break rules — is env
+driven; only the trigger is not.
+
+Vercel's Hobby plan limits cron to once daily. For hourly polling that means Pro,
+or an external trigger: `/api/poll` is an ordinary authenticated endpoint, so a
+GitHub Actions schedule calling it with the bearer token works just as well.
 
 ---
 

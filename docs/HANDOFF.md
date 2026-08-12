@@ -34,6 +34,10 @@ None. No images or icon files; the only glyphs are the sun/moon characters on th
 ## Open source
 This ships publicly as self-hosted software: every group-specific value is an environment variable and the app must run with only `FPL_LEAGUE_ID` and `DATABASE_URL` set. See section 11 of the brief for the full variable list, repo hygiene (MIT, `.env.example`, disclaimer, no Premier League marks) and the rate-limiting and pagination behaviour that changes once other people are running instances. The theme accent is env-configurable — keep the tokens as CSS variables so an override is a one-line change.
 
+## Brand
+Project name: **fpl-gaffer**. Favicon set in `assets/` — green `#3ddc84` G on deep purple `#3b1d70`, matching the dark-mode accent. Use `favicon.svg` as the primary icon and `favicon-180.png` as `apple-touch-icon`.
+
 ## Files
 - `FPL League.dc.html` — the interactive design reference
+- `assets/` — favicon set (SVG source + PNG sizes, plus a dark variant)
 - `fpl-leaderboard-technical-brief.md` — the full technical brief, updated with the stack decision (5b) and design spec (10)

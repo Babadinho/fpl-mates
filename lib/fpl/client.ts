@@ -7,10 +7,14 @@
  * hard backoff on 429/403.
  */
 import { getConfig } from '../config';
+import { z } from 'zod';
 import {
   bootstrapSchema,
   entryHistorySchema,
+  entryPicksSchema,
+  fixturesSchema,
   leagueStandingsSchema,
+  liveEventSchema,
   type FplEvent,
 } from './schemas';
 
@@ -83,8 +87,7 @@ async function getJson(path: string): Promise<unknown> {
 
 /** The 38 gameweeks. Large payload — cache per BOOTSTRAP_CACHE_HOURS. */
 export async function fetchEvents(): Promise<FplEvent[]> {
-  const raw = await getJson('bootstrap-static/');
-  return bootstrapSchema.parse(raw).events;
+  return (await fetchBootstrap()).events;
 }
 
 /** A league member, normalised across the two shapes the API uses. */
@@ -214,4 +217,51 @@ export async function mapWithConcurrency<T, R>(
 
   await Promise.all(workers);
   return results;
+}
+
+/* ------------------------------------------------------------ live data */
+
+/**
+ * bootstrap-static is ~1.4MB and near-static, so it is cached in memory for
+ * BOOTSTRAP_CACHE_HOURS (section 11, item 1). The live table needs `teams` for
+ * fixture short codes and `elements` to map players to fixtures.
+ */
+let bootstrapCache: { at: number; data: z.infer<typeof bootstrapSchema> } | undefined;
+
+export async function fetchBootstrap() {
+  const cfg = getConfig();
+  const ttl = cfg.fpl.bootstrapCacheHours * 60 * 60 * 1000;
+
+  if (bootstrapCache && Date.now() - bootstrapCache.at < ttl) {
+    return bootstrapCache.data;
+  }
+
+  const data = bootstrapSchema.parse(await getJson('bootstrap-static/'));
+  bootstrapCache = { at: Date.now(), data };
+  return data;
+}
+
+/** All fixtures for one gameweek. One call drives the whole fixtures grid. */
+export async function fetchFixtures(event: number) {
+  return fixturesSchema.parse(await getJson(`fixtures/?event=${event}`));
+}
+
+/**
+ * Live player stats for one gameweek.
+ *
+ * One call covers every manager, regardless of league size — which is what
+ * makes a live table affordable.
+ */
+export async function fetchLiveEvent(event: number) {
+  return liveEventSchema.parse(await getJson(`event/${event}/live/`));
+}
+
+/**
+ * A manager's picks for one gameweek.
+ *
+ * Frozen at the deadline, so this is fetched once per manager per gameweek and
+ * cached in Postgres rather than on every refresh.
+ */
+export async function fetchEntryPicks(entryId: number, event: number) {
+  return entryPicksSchema.parse(await getJson(`entry/${entryId}/event/${event}/picks/`));
 }

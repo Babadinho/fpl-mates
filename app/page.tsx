@@ -33,8 +33,8 @@ export default async function Page() {
                   style={{
                     background: data.status.settled
                       ? 'var(--pop)'
-                      : data.seasonStarted
-                        ? 'oklch(0.75 0.16 75)'
+                      : data.status.live || data.seasonStarted
+                        ? 'var(--amber)'
                         : 'var(--dim)',
                   }}
                 />
@@ -79,11 +79,13 @@ export default async function Page() {
 
         {/* ---------------------------------------------------------- footer */}
         <footer className="mt-16 flex flex-col gap-2 border-t border-line pt-[22px] font-mono text-[11px] text-dim sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-          <span>Scores settle on data_checked · last poll {data.status.polled}</span>
+          {/* The design writes "settle on data_checked" here; that is the API's
+              field name, not something the league should have to know. */}
+          <span>Scores are final once FPL applies bonus points · checked {data.status.polled}</span>
           <span>
             {data.whatsappEnabled
               ? 'Table also posts to WhatsApp when a gameweek settles'
-              : `${data.totalGameweeks} gameweeks loaded`}
+              : `${data.seasonLabel} · ${data.totalGameweeks} gameweeks`}
           </span>
         </footer>
       </div>

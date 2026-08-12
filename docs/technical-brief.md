@@ -352,6 +352,17 @@ Type: **Bebas Neue** for headings (league name 66px, hero names 38px, section he
 
 Radii: 4px on pills and badges, 999px on the status pill and toggle. No shadows anywhere — hairline rules only. Transitions: 120ms on row hover, 200ms on theme change.
 
+### Large leagues
+
+The design carries these only when the league exceeds one page (25 rows); a twelve-person league sees none of them.
+
+- **Search** — filters on manager name and team name, client-side over the already-loaded page set for small leagues, server-side (`ILIKE`, indexed) above ~200 managers. Resets to page 1 on every keystroke.
+- **Pager** — 25 rows per page, "1–25 of 240" on the left, Prev / Page n of m / Next on the right. Disabled buttons dim to 45% rather than disappearing, so the control does not reflow.
+- **Rank is absolute**, computed over the whole sorted league before slicing — never the page index.
+- **No viewer identity.** There are no accounts (section 1) and nothing reliably tells us which manager is looking, so there is no "my row" pinning or jump. Search is how you find yourself.
+
+Server-side: sort and paginate in SQL (`ORDER BY net_points DESC, transfer_cost ASC, points_on_bench ASC LIMIT 25 OFFSET n`). Note this is *display* pagination and is unrelated to the FPL API's `has_next` standings pagination (section 3) — both are needed, for different reasons.
+
 ### Behaviour to implement
 
 - Tab, gameweek and month selection are client state; the tables themselves render server-side from Postgres.
@@ -401,3 +412,38 @@ Rule: **the app must boot and run correctly with only the two required variables
 3. **Configurable rules.** Tie-break order and the pre-join question are group decisions, not ours — hence the variables above. Whatever is in force must be stated in the UI footnote (section 10, item 6) so nobody has to read the source to know how they lost.
 4. **Multi-league is still out of scope** — one instance, one league. Do not hardcode the ID, but do not build a league picker either.
 5. **Season rollover** (gotcha 7) matters more publicly: ship the archive step, not a note promising it.
+
+---
+
+## 12. Fixtures and the live provisional view
+
+The FPL API exposes fixtures, so the page covers the mid-week and in-play states, not only settled tables.
+
+### Endpoints
+
+- `/api/fixtures/` — all 380 fixtures; `/api/fixtures/?event=N` for one gameweek.
+- Team names and three-letter codes come from the `teams` array in `bootstrap-static/`; join on `team_h` / `team_a` ids.
+
+Fields used: `kickoff_time` (UTC — convert with `TIMEZONE`), `started`, `finished`, `minutes`, `team_h_score` / `team_a_score`, and `stats` (goals, assists, bonus, BPS) for provisional bonus. `team_h_difficulty` / `team_a_difficulty` are available but unused — fixture difficulty is a squad-planning tool, not a league tool, and was deliberately left out.
+
+### Fixtures tab
+
+A fifth tab after History. Header is the gameweek name plus deadline and a live countdown, with a state line on the right ("6 of 10 played"). Below, a five-across grid of fixture cells (two-across on mobile): home code, minute or `FT`, score, away code. Unstarted fixtures show kickoff time in dimmed text instead of a score. In-play minute is amber.
+
+Fixtures are text only — three-letter codes, no crests, kit colours or league marks (section 11).
+
+### Live provisional table
+
+While the current gameweek is started but not `data_checked`:
+
+- The status pill turns **amber** and reads `GW n LIVE · PROVISIONAL`, with a subline stating the last settled gameweek.
+- **The in-play gameweek appears in the Weekly rail as soon as it starts, and is the default selection** — styled like any other pill, so the Weekly tab, the Fixtures tab and the header always agree on which gameweek is current.
+- Its table meta line reads "In play · n of 10 fixtures started · provisional" in amber.
+- That table replaces the Bench column with **Prov bonus** — bonus derived from live BPS in `stats`, shown as `+n`.
+- The footnote states plainly that nothing is final and no winner is recorded yet.
+
+Non-negotiable: **a live gameweek never writes a winner.** It is a read-only projection. Only the `data_checked` transition writes the settled row, records the weekly winner, updates the month, and triggers the WhatsApp post (sections 4 and 6). The live view exists so people can watch; the settled write is what counts.
+
+### Polling
+
+The hourly cron is too slow for a live view. During a gameweek's fixture window, poll `/api/fixtures/?event=N` and live points every 2–5 minutes; outside it, fall back to hourly. Derive the window from `kickoff_time` of the first and last fixture plus a margin — do not poll fast for a whole weekend. This makes the rate-limit etiquette in section 11 more important, not less: cache aggressively, back off on 429, and never let a self-hosted instance poll fast when no ball is being kicked.

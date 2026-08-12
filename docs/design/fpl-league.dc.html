@@ -20,27 +20,49 @@
     --hover:oklch(0.955 0.01 300);
   }
   body { margin:0; background:var(--bg); -webkit-font-smoothing:antialiased; }
+  @media (max-width: 760px) {
+    [data-r="page"] { padding:0 16px 64px !important; }
+    [data-r="header"] { flex-direction:column !important; align-items:flex-start !important; gap:18px !important; padding:28px 0 24px !important; }
+    [data-r="title"] { font-size:40px !important; }
+    [data-r="status"] { align-items:flex-start !important; padding-bottom:0 !important; width:100%; }
+    [data-r="hero"] { grid-template-columns:1fr !important; }
+    [data-r="herocell"] { padding:18px 0 20px !important; gap:8px !important; }
+    [data-r="heroname"] { font-size:30px !important; }
+    [data-r="tabs"] { gap:18px !important; overflow-x:auto; }
+    [data-r="rail"] { flex-wrap:nowrap !important; overflow-x:auto; scrollbar-width:none; padding-bottom:10px !important; }
+    [data-r="rail"]::-webkit-scrollbar { display:none; }
+    [data-r="tablehead"], [data-r="row"] { grid-template-columns:30px minmax(0,1fr) 68px !important; }
+    [data-r="c1"], [data-r="c2"] { display:none !important; }
+    [data-r="history"] { grid-template-columns:1fr !important; gap:36px !important; }
+    [data-r="fixgrid"] { grid-template-columns:repeat(2,1fr) !important; }
+    [data-r="fixtures"] > div:first-child { flex-direction:column !important; align-items:flex-start !important; gap:8px !important; }
+    [data-r="fixtures"] h2 { font-size:26px !important; }
+    [data-r="toolbar"] { flex-direction:column !important; align-items:stretch !important; gap:10px !important; }
+    [data-r="toolbar"] > div { max-width:none !important; }
+    [data-r="pager"] { flex-direction:column !important; align-items:flex-start !important; gap:12px !important; }
+    [data-r="foot"] { flex-direction:column !important; align-items:flex-start !important; gap:8px !important; }
+  }
   a { color:var(--accent); text-decoration:none; }
   a:hover { color:var(--pop); }
 </style>
 </helmet>
 <div style="{{ theme }}">
-<div style="min-height:100vh; background:var(--bg); color:var(--ink); font-family:Manrope,'Helvetica Neue',Helvetica,sans-serif; padding:0 32px 96px; transition:background 200ms ease, color 200ms ease;">
+<div data-r="page" style="min-height:100vh; background:var(--bg); color:var(--ink); font-family:Manrope,'Helvetica Neue',Helvetica,sans-serif; padding:0 32px 96px; transition:background 200ms ease, color 200ms ease;">
 
   <div style="max-width:1060px; margin:0 auto;">
 
-    <header style="display:flex; align-items:flex-end; justify-content:space-between; gap:32px; padding:44px 0 34px; border-bottom:1px solid var(--line);">
+    <header data-r="header" style="display:flex; align-items:flex-end; justify-content:space-between; gap:32px; padding:44px 0 34px; border-bottom:1px solid var(--line);">
       <div style="display:flex; flex-direction:column; gap:12px;">
         <div style="display:flex; align-items:center; gap:10px;">
           <span style="width:22px; height:22px; border-radius:4px; background:var(--accent); display:block;"></span>
           <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--dim);">Fantasy Premier League · 2026/27</span>
         </div>
-        <h1 style="margin:0; font-family:'Bebas Neue',Impact,sans-serif; font-size:66px; font-weight:400; letter-spacing:0.005em; line-height:0.88; text-transform:uppercase;">{{ leagueName }}</h1>
+        <h1 data-r="title" style="margin:0; font-family:'Bebas Neue',Impact,sans-serif; font-size:66px; font-weight:400; letter-spacing:0.005em; line-height:0.88; text-transform:uppercase;">{{ leagueName }}</h1>
       </div>
-      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px; padding-bottom:6px;">
+      <div data-r="status" style="display:flex; flex-direction:column; align-items:flex-end; gap:10px; padding-bottom:6px;">
         <div style="display:flex; align-items:center; gap:10px;">
           <div style="display:flex; align-items:center; gap:8px; padding:7px 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel);">
-            <span style="width:6px; height:6px; border-radius:50%; background:var(--pop);"></span>
+            <span style="width:6px; height:6px; border-radius:50%; background:{{ liveDot }};"></span>
             <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.06em; color:var(--ink);">{{ status.label }}</span>
           </div>
           <button type="button" onClick="{{ toggleDark }}" title="Toggle dark mode" style="appearance:none; cursor:pointer; width:34px; height:34px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--ink); font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center;" style-hover="border-color:var(--accent); color:var(--accent);">{{ darkIcon }}</button>
@@ -49,26 +71,26 @@
       </div>
     </header>
 
-    <section style="display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border-bottom:1px solid var(--line);">
-      <div style="background:var(--bg); padding:26px 24px 28px; display:flex; flex-direction:column; gap:12px;">
+    <section data-r="hero" style="display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border-bottom:1px solid var(--line);">
+      <div data-r="herocell" style="background:var(--bg); padding:26px 24px 28px; display:flex; flex-direction:column; gap:12px;">
         <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--dim);">{{ hero.week.label }}</div>
-        <div style="font-family:'Bebas Neue',Impact,sans-serif; font-size:38px; font-weight:400; line-height:0.95; letter-spacing:0.01em; text-transform:uppercase;">{{ hero.week.name }}</div>
+        <div data-r="heroname" style="font-family:'Bebas Neue',Impact,sans-serif; font-size:38px; font-weight:400; line-height:0.95; letter-spacing:0.01em; text-transform:uppercase;">{{ hero.week.name }}</div>
         <div style="display:flex; align-items:baseline; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--dim);">
           <span style="font-size:15px; color:var(--accent);">{{ hero.week.value }}</span>
           <span>{{ hero.week.sub }}</span>
         </div>
       </div>
-      <div style="background:var(--bg); padding:26px 24px 28px; display:flex; flex-direction:column; gap:12px;">
+      <div data-r="herocell" style="background:var(--bg); padding:26px 24px 28px; display:flex; flex-direction:column; gap:12px;">
         <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--dim);">{{ hero.month.label }}</div>
-        <div style="font-family:'Bebas Neue',Impact,sans-serif; font-size:38px; font-weight:400; line-height:0.95; letter-spacing:0.01em; text-transform:uppercase;">{{ hero.month.name }}</div>
+        <div data-r="heroname" style="font-family:'Bebas Neue',Impact,sans-serif; font-size:38px; font-weight:400; line-height:0.95; letter-spacing:0.01em; text-transform:uppercase;">{{ hero.month.name }}</div>
         <div style="display:flex; align-items:baseline; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--dim);">
           <span style="font-size:15px; color:var(--accent);">{{ hero.month.value }}</span>
           <span>{{ hero.month.sub }}</span>
         </div>
       </div>
-      <div style="background:var(--bg); padding:26px 24px 28px; display:flex; flex-direction:column; gap:12px;">
+      <div data-r="herocell" style="background:var(--bg); padding:26px 24px 28px; display:flex; flex-direction:column; gap:12px;">
         <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--dim);">{{ hero.season.label }}</div>
-        <div style="font-family:'Bebas Neue',Impact,sans-serif; font-size:38px; font-weight:400; line-height:0.95; letter-spacing:0.01em; text-transform:uppercase;">{{ hero.season.name }}</div>
+        <div data-r="heroname" style="font-family:'Bebas Neue',Impact,sans-serif; font-size:38px; font-weight:400; line-height:0.95; letter-spacing:0.01em; text-transform:uppercase;">{{ hero.season.name }}</div>
         <div style="display:flex; align-items:baseline; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--dim);">
           <span style="font-size:15px; color:var(--accent);">{{ hero.season.value }}</span>
           <span>{{ hero.season.sub }}</span>
@@ -76,14 +98,14 @@
       </div>
     </section>
 
-    <nav style="display:flex; gap:28px; padding:26px 0 0;">
+    <nav data-r="tabs" style="display:flex; gap:28px; padding:26px 0 0;">
       <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
         <button type="button" onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
       </sc-for>
     </nav>
 
     <sc-if value="{{ showPills }}" hint-placeholder-val="{{ true }}">
-      <div style="display:flex; flex-wrap:wrap; gap:6px; padding:20px 0 4px;">
+      <div data-r="rail" style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:20px 0 4px;">
         <sc-for list="{{ pills }}" as="p" hint-placeholder-count="12">
           <button type="button" onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</button>
         </sc-for>
@@ -94,19 +116,27 @@
       <section style="padding:26px 0 0;">
         <div style="display:flex; align-items:baseline; justify-content:space-between; gap:24px; padding-bottom:16px;">
           <h2 style="margin:0; font-family:'Bebas Neue',Impact,sans-serif; font-size:32px; font-weight:400; letter-spacing:0.02em; text-transform:uppercase;">{{ table.title }}</h2>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">{{ table.meta }}</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);"><span style="{{ table.metaStyle }}">{{ table.meta }}</span></div>
         </div>
 
-        <div style="display:grid; grid-template-columns:44px minmax(0,1fr) 96px 96px 104px; padding:0 14px 10px; border-bottom:1px solid var(--line);">
+        <sc-if value="{{ bigLeague }}" hint-placeholder-val="{{ false }}">
+          <div data-r="toolbar" style="display:flex; align-items:center; gap:16px; padding:0 0 16px;">
+            <div style="flex:1 1 260px; max-width:300px;">
+              <input type="text" placeholder="Search manager or team" value="{{ search.value }}" onChange="{{ search.onChange }}" style="{{ search.style }}" />
+            </div>
+          </div>
+        </sc-if>
+
+        <div data-r="tablehead" style="display:grid; grid-template-columns:44px minmax(0,1fr) 96px 96px 104px; padding:0 14px 10px; border-bottom:1px solid var(--line);">
           <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim);">#</div>
           <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim);">Manager</div>
           <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim); text-align:right;">{{ table.h0 }}</div>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim); text-align:right;">{{ table.h1 }}</div>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim); text-align:right;">{{ table.h2 }}</div>
+          <div data-r="c1" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim); text-align:right;">{{ table.h1 }}</div>
+          <div data-r="c2" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim); text-align:right;">{{ table.h2 }}</div>
         </div>
 
         <sc-for list="{{ rows }}" as="row" hint-placeholder-count="10">
-          <div style="display:grid; grid-template-columns:44px minmax(0,1fr) 96px 96px 104px; align-items:center; padding:15px 14px; border-bottom:1px solid var(--hair); transition:background 120ms ease;" style-hover="background:var(--hover);">
+          <div data-r="row" style="display:grid; grid-template-columns:44px minmax(0,1fr) 96px 96px 104px; align-items:center; padding:15px 14px; border-bottom:1px solid var(--hair); transition:background 120ms ease;" style-hover="background:var(--hover);">
             <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--dim);">{{ row.rank }}</div>
             <div style="display:flex; align-items:center; gap:12px; min-width:0;">
               <div style="display:flex; flex-direction:column; gap:3px; min-width:0;">
@@ -123,17 +153,28 @@
               </sc-if>
             </div>
             <div style="font-family:'JetBrains Mono',monospace; font-size:16px; text-align:right;">{{ row.c0 }}</div>
-            <div style="font-family:'JetBrains Mono',monospace; font-size:13px; text-align:right; color:var(--dim);">{{ row.c1 }}</div>
-            <div style="font-family:'JetBrains Mono',monospace; font-size:13px; text-align:right; color:var(--dim);">{{ row.c2 }}</div>
+            <div data-r="c1" style="font-family:'JetBrains Mono',monospace; font-size:13px; text-align:right; color:var(--dim);">{{ row.c1 }}</div>
+            <div data-r="c2" style="font-family:'JetBrains Mono',monospace; font-size:13px; text-align:right; color:var(--dim);">{{ row.c2 }}</div>
           </div>
         </sc-for>
+
+        <sc-if value="{{ pager.show }}" hint-placeholder-val="{{ false }}">
+          <div data-r="pager" style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 0 0;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">{{ pager.range }}</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <button type="button" onClick="{{ pager.prev }}" style="{{ pager.prevStyle }}">Prev</button>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim); min-width:88px; text-align:center;">{{ pager.page }}</span>
+              <button type="button" onClick="{{ pager.next }}" style="{{ pager.nextStyle }}">Next</button>
+            </div>
+          </div>
+        </sc-if>
 
         <div style="padding:18px 14px 0; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.7; color:var(--dim);">{{ table.note }}</div>
       </section>
     </sc-if>
 
     <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
-      <section style="display:grid; grid-template-columns:1fr 1fr; gap:56px; padding:34px 0 0;">
+      <section data-r="history" style="display:grid; grid-template-columns:1fr 1fr; gap:56px; padding:34px 0 0;">
         <div>
           <h2 style="margin:0 0 16px; font-family:'Bebas Neue',Impact,sans-serif; font-size:32px; font-weight:400; letter-spacing:0.02em; text-transform:uppercase;">Weekly winners</h2>
           <sc-for list="{{ weeklyWinners }}" as="w" hint-placeholder-count="12">
@@ -158,7 +199,32 @@
       </section>
     </sc-if>
 
-    <footer style="display:flex; align-items:center; justify-content:space-between; gap:24px; margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">
+    <sc-if value="{{ isFixtures }}" hint-placeholder-val="{{ false }}">
+      <section data-r="fixtures" style="padding:30px 0 0;">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:20px; padding-bottom:20px;">
+          <div style="display:flex; align-items:baseline; gap:16px;">
+            <h2 style="margin:0; font-family:'Bebas Neue',Impact,sans-serif; font-size:32px; font-weight:400; letter-spacing:0.02em; text-transform:uppercase;">{{ fixtures.title }}</h2>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">{{ fixtures.deadline }}</span>
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--dim);">{{ fixtures.state }}</span>
+        </div>
+        <div data-r="fixgrid" style="display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+          <sc-for list="{{ fixtures.list }}" as="fx" hint-placeholder-count="10">
+            <div style="background:var(--bg); padding:18px 14px; display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink);">{{ fx.home }}</span>
+                <span style="{{ fx.clockStyle }}">{{ fx.clock }}</span>
+              </div>
+              <div style="{{ fx.scoreStyle }}">{{ fx.score }}</div>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.06em; color:var(--dim);">{{ fx.away }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:18px 0 0; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.7; color:var(--dim);">{{ fixtures.note }}</div>
+      </section>
+    </sc-if>
+
+    <footer data-r="foot" style="display:flex; align-items:center; justify-content:space-between; gap:24px; margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">
       <span>Scores settle on data_checked · last poll {{ status.polled }}</span>
       <span>Table also posts to WhatsApp when a gameweek settles</span>
     </footer>
@@ -168,17 +234,36 @@
 </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;leagueName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;The Sunday League&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.42 0.17 305)&quot;,&quot;options&quot;:[&quot;oklch(0.42 0.17 305)&quot;,&quot;oklch(0.45 0.16 255)&quot;,&quot;oklch(0.45 0.17 25)&quot;,&quot;oklch(0.35 0.03 300)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;pop&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.72 0.19 145)&quot;,&quot;options&quot;:[&quot;oklch(0.72 0.19 145)&quot;,&quot;oklch(0.78 0.17 190)&quot;,&quot;oklch(0.78 0.16 100)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBench&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;leagueName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;The Sunday League&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;playedGw&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:12,&quot;min&quot;:1,&quot;max&quot;:38,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;liveMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;leagueSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:240,&quot;min&quot;:8,&quot;max&quot;:400,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.42 0.17 305)&quot;,&quot;options&quot;:[&quot;oklch(0.42 0.17 305)&quot;,&quot;oklch(0.45 0.16 255)&quot;,&quot;oklch(0.45 0.17 25)&quot;,&quot;oklch(0.35 0.03 300)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;pop&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.72 0.19 145)&quot;,&quot;options&quot;:[&quot;oklch(0.72 0.19 145)&quot;,&quot;oklch(0.78 0.17 190)&quot;,&quot;oklch(0.78 0.16 100)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBench&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
 class Component extends DCLogic {
-  state = { tab: 'weekly', gw: 12, month: 'Nov', dark: false };
+  state = { tab: 'weekly', gw: 0, month: '', dark: false, query: '', page: 0, now: Date.now(), fixOpen: true };
+  PAGE_SIZE = 25;
 
   MONTHS = [
     { key: 'Aug', label: 'August', gws: [1, 2] },
-    { key: 'Sep', label: 'September', gws: [3, 4, 5, 6] },
-    { key: 'Oct', label: 'October', gws: [7, 8, 9] },
-    { key: 'Nov', label: 'November', gws: [10, 11, 12, 13] }
+    { key: 'Sep', label: 'September', gws: [3, 4, 5] },
+    { key: 'Oct', label: 'October', gws: [6, 7, 8] },
+    { key: 'Nov', label: 'November', gws: [9, 10, 11, 12] },
+    { key: 'Dec', label: 'December', gws: [13, 14, 15, 16, 17, 18, 19] },
+    { key: 'Jan', label: 'January', gws: [20, 21, 22, 23] },
+    { key: 'Feb', label: 'February', gws: [24, 25, 26] },
+    { key: 'Mar', label: 'March', gws: [27, 28, 29, 30] },
+    { key: 'Apr', label: 'April', gws: [31, 32, 33, 34, 35] },
+    { key: 'May', label: 'May', gws: [36, 37, 38] }
   ];
-  PLAYED = 12;
+  get LIVE() { return (this.props.liveMode ?? true) && this.PLAYED < 38; }
+  get LIVE_GW() { return this.PLAYED + 1; }
+
+  FIXTURES = [
+    ['ARS', 'BHA', 90, 2, 0], ['LIV', 'NEW', 90, 3, 1], ['MCI', 'AVL', 78, 1, 1],
+    ['CHE', 'BOU', 61, 0, 0], ['TOT', 'FUL', 24, 1, 0], ['MUN', 'CRY', 0, null, null],
+    ['NFO', 'EVE', 0, null, null], ['WHU', 'BRE', 0, null, null],
+    ['WOL', 'IPS', 0, null, null], ['LEI', 'SOU', 0, null, null]
+  ];
+
+  get SIZE() { return Math.max(4, Math.min(400, Math.round(this.props.leagueSize ?? 240))); }
+
+  get PLAYED() { return Math.max(1, Math.min(38, Math.round(this.props.playedGw ?? 38))); }
 
   people = [
     ['Dev Mehta', 'Salah Days a Week'], ['Tom Whitfield', 'Bench Warmers FC'],
@@ -190,20 +275,61 @@ class Component extends DCLogic {
   ];
 
   componentDidMount() {
+    this._deadline = Date.now() + 1000 * 60 * 60 * 41 + 1000 * 60 * 17;
+    this._tick = setInterval(() => this.setState({ now: Date.now() }), 1000);
     try {
       const v = localStorage.getItem('fpl-dark');
       if (v !== null) this.setState({ dark: v === '1' });
     } catch (e) {}
   }
 
+  roster() {
+    const base = this.people;
+    if (this.SIZE <= base.length) return base.slice(0, this.SIZE);
+    const first = ['Alex','Jordan','Sam','Chris','Nathan','Ola','Ravi','Erin','Josh','Mia','Tomas','Zoe','Ade','Callum','Ines','Femi','Hugo','Nadia','Owen','Ruth','Sean','Tara','Umar','Vik','Wren','Yara','Zach','Beth','Dan','Esme','Finn','Gus','Hal','Iris','Jai','Kian','Lena','Mo','Nia','Otis'];
+    const last = ['Whitfield','Adeyemi','Raman','Cole','Beck','Okonjo','Nash','Fontaine','Suzuki','Arroyo','Danvers','Okafor','Lindqvist','Brennan','Duarte','Halloran','Ibarra','Kovacs','Mensah','Petrov'];
+    const mid = 'ABCDEFGHJKLMNPRSTVW';
+    const t1 = ['Bench','Xg','Captain','Wildcard','Deadline','Bonus','Offside','Fixture','Rotation','Differential','Armband','Transfer'];
+    const t2 = ['Merchants','Theory','Anonymous','United','Athletic','Collective','Society','Rangers','Wanderers','Academy','Republic','Institute'];
+    const out = base.slice();
+    for (let i = base.length; i < this.SIZE; i++) {
+      const fi = i % first.length, li = (i * 7) % last.length;
+      const cycle = Math.floor(i / (first.length * last.length));
+      const initial = mid[Math.floor(i / first.length) % mid.length];
+      out.push([
+        first[fi] + ' ' + initial + '. ' + last[li] + (cycle ? ' ' + (cycle + 1) : ''),
+        t1[i % t1.length] + ' ' + t2[Math.floor(i / t1.length) % t2.length] + (Math.floor(i / (t1.length * t2.length)) ? ' ' + (Math.floor(i / (t1.length * t2.length)) + 1) : '')
+      ]);
+    }
+    return out;
+  }
+
+  componentWillUnmount() { clearInterval(this._tick); }
+
+  countdown() {
+    const ms = Math.max(0, (this._deadline || Date.now()) - this.state.now);
+    const d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24;
+    const m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
+    const p = n => String(n).padStart(2, '0');
+    return d + 'd ' + p(h) + ':' + p(m) + ':' + p(s);
+  }
+
+  liveRows() {
+    const raw = this.data().scores[this.LIVE_GW] || [];
+    return this.sortRows(raw.map(r => {
+      const partial = Math.round(r.gross * 0.62);
+      return { id: r.id, gross: partial, cost: r.cost, net: partial - r.cost, bench: r.bench, chip: r.chip, prov: Math.round((r.gross % 7) * 0.9) };
+    }));
+  }
+
   data() {
-    if (this._d) return this._d;
+    if (this._d && this._d.size === this.SIZE) return this._d;
     let s = 20260827;
     const rnd = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
-    const chips = { 4: [2, 'FH'], 6: [7, 'BB'], 8: [0, 'TC'], 9: [5, 'WC'], 11: [9, 'TC'], 12: [3, 'BB'] };
-    const managers = this.people.map(([player_name, entry_name], i) => ({ id: 100000 + i * 7, player_name, entry_name, joined_gw: 1 }));
+    const chips = { 4: [2, 'FH'], 6: [7, 'BB'], 8: [0, 'TC'], 9: [5, 'WC'], 11: [9, 'TC'], 12: [3, 'BB'], 17: [6, 'WC'], 19: [1, 'BB'], 24: [10, 'FH'], 29: [4, 'TC'], 33: [8, 'WC'], 37: [11, 'BB'], 38: [2, 'TC'] };
+    const managers = this.roster().map(([player_name, entry_name], i) => ({ id: 100000 + i * 7, player_name, entry_name, joined_gw: 1 }));
     const scores = {};
-    for (let gw = 1; gw <= this.PLAYED; gw++) {
+    for (let gw = 1; gw <= 38; gw++) {
       scores[gw] = managers.map((m, i) => {
         const gross = Math.round(38 + rnd() * 52 + (rnd() > 0.86 ? 22 : 0));
         const r = rnd();
@@ -212,7 +338,7 @@ class Component extends DCLogic {
         return { id: m.id, gross, cost, net: gross - cost, bench: Math.round(rnd() * 19), chip };
       });
     }
-    this._d = { managers, scores };
+    this._d = { managers, scores, size: this.SIZE };
     return this._d;
   }
 
@@ -244,8 +370,16 @@ class Component extends DCLogic {
     return this.sortRows(Object.values(acc));
   }
 
+  months() { return this.MONTHS.filter(m => m.gws[0] <= this.PLAYED); }
+
   renderVals() {
-    const { tab, gw, month, dark } = this.state;
+    const { tab, dark } = this.state;
+    const played = this.PLAYED;
+    const months = this.months();
+    const maxGw = this.LIVE ? this.LIVE_GW : played;
+    const gw = Math.min(this.state.gw || maxGw, maxGw);
+    const curMonth = months[months.length - 1];
+    const month = months.some(m => m.key === this.state.month) ? this.state.month : curMonth.key;
     const accent = this.props.accent ?? 'oklch(0.42 0.17 305)';
     const pop = this.props.pop ?? 'oklch(0.72 0.19 145)';
     const showBench = this.props.showBench ?? true;
@@ -263,34 +397,47 @@ class Component extends DCLogic {
     const t = dark ? darkT : light;
     const theme = `--bg:${t.bg}; --panel:${t.panel}; --ink:${t.ink}; --dim:${t.dim}; --line:${t.line}; --hair:${t.hair}; --hover:${t.hover}; --accent:${t.accent}; --accent-ink:${t.accentInk}; --pop:${dark ? 'oklch(0.78 0.16 100)' : pop};`;
 
-    const tabs = [['weekly', 'Weekly'], ['monthly', 'Monthly'], ['season', 'Season'], ['history', 'History']].map(([k, label]) => ({
+    const tabs = [['weekly', 'Weekly'], ['monthly', 'Monthly'], ['season', 'Season'], ['history', 'History'], ['fixtures', 'Fixtures']].map(([k, label]) => ({
       label,
       onClick: () => this.setState({ tab: k }),
       style: `appearance:none; background:none; border:none; padding:0 0 14px; cursor:pointer; font-family:Manrope,Helvetica,sans-serif; font-size:13px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:${tab === k ? t.ink : t.dim}; border-bottom:2px solid ${tab === k ? t.accent : 'transparent'};`
     }));
 
+    const amber = dark ? 'oklch(0.8 0.15 80)' : 'oklch(0.62 0.14 70)';
     const pillStyle = on => `appearance:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.04em; padding:7px 11px; border-radius:4px; border:1px solid ${on ? t.accent : t.line}; background:${on ? t.accent : t.panel}; color:${on ? t.accentInk : t.dim};`;
 
     let pills = [];
-    if (tab === 'weekly') pills = Array.from({ length: this.PLAYED }, (_, i) => i + 1).map(g => ({
-      label: 'GW' + g, onClick: () => this.setState({ gw: g }), style: pillStyle(g === gw)
-    }));
-    if (tab === 'monthly') pills = this.MONTHS.map(m => ({
+    if (tab === 'weekly') {
+      pills = Array.from({ length: maxGw }, (_, i) => i + 1).map(g => ({
+        label: 'GW' + g, onClick: () => this.setState({ gw: g, page: 0 }), style: pillStyle(g === gw)
+      }));
+    }
+    if (tab === 'monthly') pills = months.map(m => ({
       label: m.label, onClick: () => this.setState({ month: m.key }), style: pillStyle(m.key === month)
     }));
 
     const mk = (r, cells) => ({
-      rank: '', name: this.name(r.id), team: this.team(r.id), chip: r.chip || false,
+      id: r.id, rank: '', name: this.name(r.id), team: this.team(r.id), chip: r.chip || false,
       isLeader: false, c0: cells[0], c1: cells[1], c2: cells[2]
     });
 
     let rows = [], table = {};
-    if (tab === 'weekly') {
+    if (tab === 'weekly' && this.LIVE && gw === this.LIVE_GW) {
+      const list = this.liveRows();
+      rows = list.map(r => mk(r, [r.net, '+' + r.prov, r.cost ? '\u2212' + r.cost : '\u2014']));
+      table = {
+        title: 'Gameweek ' + this.LIVE_GW,
+        meta: 'In play \u00b7 6 of 10 fixtures started \u00b7 provisional',
+        metaStyle: 'color:' + amber + ';',
+        h0: 'Net', h1: 'Prov bonus', h2: 'Hits',
+        note: 'Provisional. Bonus is computed from live BPS and can still change; the gameweek counts only once FPL sets data_checked, and no winner is recorded until then.'
+      };
+    } else if (tab === 'weekly') {
       const list = this.weekTable(gw);
       rows = list.map(r => mk(r, [r.net, r.cost ? '−' + r.cost : '—', showBench ? r.bench : '—']));
       table = {
-        title: 'Gameweek ' + gw, meta: list.length + ' managers · avg ' + Math.round(list.reduce((a, b) => a + b.net, 0) / list.length),
-        h0: 'Net', h1: 'Hits', h2: 'Bench',
+        title: 'Gameweek ' + gw, meta: list.length + ' managers \u00b7 avg ' + Math.round(list.reduce((a, b) => a + b.net, 0) / list.length),
+        h0: 'Net', h1: 'Hits', h2: 'Bench', metaStyle: '',
         note: 'Net points = gross points − transfer cost. Ties break on fewest hits, then fewest points left on the bench.'
       };
     } else if (tab === 'monthly') {
@@ -299,29 +446,51 @@ class Component extends DCLogic {
       const m = this.MONTHS.find(x => x.key === month);
       table = {
         title: m.label + ' 2026', meta: 'GW ' + gws[0] + '–' + gws[gws.length - 1] + (m.gws.length > gws.length ? ' · in progress' : ' · settled'),
-        h0: 'Net', h1: 'GWs', h2: 'Avg',
+        h0: 'Net', h1: 'GWs', h2: 'Avg', metaStyle: '',
         note: 'A gameweek belongs to the month of its FPL deadline. ' + m.label + ' holds ' + m.gws.length + ' gameweeks.'
       };
     } else if (tab === 'season') {
-      const list = this.seasonTable(this.PLAYED);
+      const list = this.seasonTable(played);
       rows = list.map(r => mk(r, [r.net, '−' + r.cost, r.best]));
       table = {
-        title: 'Season table', meta: 'After GW ' + this.PLAYED + ' of 38',
-        h0: 'Total', h1: 'Hits', h2: 'Best GW',
+        title: 'Season table', meta: played === 38 ? 'Final \u2014 38 of 38' : 'After GW ' + played + ' of 38',
+        h0: 'Total', h1: 'Hits', h2: 'Best GW', metaStyle: '',
         note: 'Mirrors the official FPL standings, recomputed from stored per-gameweek rows so any rule change can be applied retroactively.'
       };
     }
     rows.forEach((r, i) => { r.rank = String(i + 1).padStart(2, '0'); r.isLeader = i === 0; });
 
-    const wk = this.weekTable(this.PLAYED)[0];
-    const mo = this.monthTable('Nov').rows[0];
-    const se = this.seasonTable(this.PLAYED)[0];
+    const q = this.state.query.trim().toLowerCase();
+    const filtered = q ? rows.filter(r => (r.name + ' ' + r.team).toLowerCase().includes(q)) : rows;
+    const pageCount = Math.max(1, Math.ceil(filtered.length / this.PAGE_SIZE));
+    const page = Math.min(this.state.page, pageCount - 1);
+    const start = page * this.PAGE_SIZE;
+    const visible = filtered.slice(start, start + this.PAGE_SIZE);
+    const paged = filtered.length > this.PAGE_SIZE;
+    const btn = on => `appearance:none; cursor:${on ? 'pointer' : 'default'}; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; padding:8px 14px; border-radius:4px; border:1px solid ${t.line}; background:${t.panel}; color:${on ? t.ink : t.dim}; opacity:${on ? 1 : 0.45};`;
+    const pager = {
+      show: paged,
+      range: (start + 1) + '\u2013' + Math.min(start + this.PAGE_SIZE, filtered.length) + ' of ' + filtered.length + (q ? ' matching' : ''),
+      page: 'Page ' + (page + 1) + ' / ' + pageCount,
+      prevStyle: btn(page > 0),
+      nextStyle: btn(page < pageCount - 1),
+      prev: () => this.setState(s => ({ page: Math.max(0, s.page - 1) })),
+      next: () => this.setState(s => ({ page: Math.min(pageCount - 1, s.page + 1) }))
+    };
+    rows = visible;
 
-    const weeklyWinners = Array.from({ length: this.PLAYED }, (_, i) => this.PLAYED - i).map(g => {
+    const wk = this.weekTable(played)[0];
+    const moT = this.monthTable(curMonth.key);
+    const mo = moT.rows[0];
+    const se = this.seasonTable(played)[0];
+    const monthDone = moT.gws.length === curMonth.gws.length;
+    const seasonDone = played === 38;
+
+    const weeklyWinners = Array.from({ length: played }, (_, i) => played - i).map(g => {
       const w = this.weekTable(g)[0];
       return { gw: 'GW ' + String(g).padStart(2, '0'), name: this.name(w.id), pts: w.net };
     });
-    const monthlyWinners = this.MONTHS.filter(m => m.gws[0] <= this.PLAYED).reverse().map(m => {
+    const monthlyWinners = months.slice().reverse().map(m => {
       const w = this.monthTable(m.key).rows[0];
       return { month: m.label.slice(0, 3), name: this.name(w.id), pts: w.net };
     });
@@ -334,16 +503,45 @@ class Component extends DCLogic {
         return { dark: !s.dark };
       }),
       leagueName: this.props.leagueName ?? 'The Sunday League',
-      status: { label: 'GW 12 SETTLED', sub: 'bonus applied · GW 13 deadline Sat 14:30', polled: '18 minutes ago' },
-      hero: {
-        week: { label: 'Gameweek 12 winner', name: this.name(wk.id), value: wk.net + ' pts', sub: wk.cost ? 'after a −' + wk.cost + ' hit' : 'no hits taken' },
-        month: { label: 'November — leading', name: this.name(mo.id), value: mo.net + ' pts', sub: 'across ' + mo.n + ' gameweeks' },
-        season: { label: 'Season leader', name: this.name(se.id), value: se.net + ' pts', sub: 'after 12 of 38' }
+      live: this.LIVE,
+      liveDot: this.LIVE ? amber : t.pop,
+      fixtures: {
+        title: this.LIVE ? 'Gameweek ' + this.LIVE_GW : 'Gameweek 38',
+        deadline: this.LIVE ? 'Deadline Sat 14:30 \u00b7 ' + this.countdown() : '2026/27 finished',
+        state: this.LIVE ? '6 of 10 played' : 'Season complete',
+        note: this.LIVE
+          ? 'Scores refresh every few minutes while fixtures are in play. A gameweek is only counted once FPL marks it data_checked \u2014 until then the live table is a projection.'
+          : 'No fixtures remaining this season.',
+        list: this.FIXTURES.map(([h, a, min, hs, as]) => ({
+          home: h, away: a,
+          score: min > 0 ? hs + ' \u2013 ' + as : 'Sat 15:00',
+          clock: min >= 90 ? 'FT' : min > 0 ? min + "'" : '',
+          clockStyle: `font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:${min > 0 && min < 90 ? amber : t.dim};`,
+          scoreStyle: `font-family:'JetBrains Mono',monospace; font-size:14px; color:${min > 0 ? t.ink : t.dim};`
+        }))
       },
+      status: {
+        label: this.LIVE ? 'GW ' + this.LIVE_GW + ' LIVE \u00b7 PROVISIONAL' : 'GW ' + played + ' SETTLED',
+        sub: seasonDone ? 'season complete \u00b7 2027/28 opens in July' : this.LIVE ? 'GW ' + played + ' settled \u00b7 bonus not yet applied to GW ' + this.LIVE_GW : 'bonus applied \u00b7 GW ' + (played + 1) + ' deadline Sat 14:30',
+        polled: '18 minutes ago'
+      },
+      hero: {
+        week: { label: 'Gameweek ' + played + ' winner', name: this.name(wk.id), value: wk.net + ' pts', sub: wk.cost ? 'after a −' + wk.cost + ' hit' : 'no hits taken' },
+        month: { label: curMonth.label + (monthDone ? ' — winner' : ' — leading'), name: this.name(mo.id), value: mo.net + ' pts', sub: 'across ' + mo.n + ' gameweeks' },
+        season: { label: seasonDone ? 'Champion 2026/27' : 'Season leader', name: this.name(se.id), value: se.net + ' pts', sub: seasonDone ? 'won by ' + (se.net - this.seasonTable(played)[1].net) + ' pts' : 'after ' + played + ' of 38' }
+      },
+      search: {
+        value: this.state.query,
+        onChange: e => this.setState({ query: e.target.value, page: 0 }),
+        style: `appearance:none; width:100%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12px; padding:9px 12px; border-radius:4px; border:1px solid ${t.line}; background:${t.panel}; color:${t.ink}; outline:none;`
+      },
+      pager,
+      bigLeague: this.SIZE > this.PAGE_SIZE,
       tabs, pills, rows, table, weeklyWinners, monthlyWinners,
       showPills: tab === 'weekly' || tab === 'monthly',
-      isTable: tab !== 'history',
-      isHistory: tab === 'history'
+      isTable: tab !== 'history' && tab !== 'fixtures',
+      isHistory: tab === 'history',
+      isFixtures: tab === 'fixtures'
     };
   }
 }

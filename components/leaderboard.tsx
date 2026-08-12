@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { Fixtures } from './fixtures';
 import { PAGE_SIZE, type LeaderboardView, type TableView, type UiRow } from '@/lib/view';
 
-type Tab = 'weekly' | 'monthly' | 'season' | 'history';
+type Tab = 'weekly' | 'monthly' | 'season' | 'history' | 'fixtures';
 
-const TABS: { key: Tab; label: string }[] = [
+const BASE_TABS: { key: Tab; label: string }[] = [
   { key: 'weekly', label: 'Weekly' },
   { key: 'monthly', label: 'Monthly' },
   { key: 'season', label: 'Season' },
@@ -38,16 +39,31 @@ function PagerButton({
   );
 }
 
-function Pill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function Pill({
+  label,
+  active,
+  live = false,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  live?: boolean;
+  onClick: () => void;
+}) {
+  // The in-play gameweek is amber rather than accent, so a provisional table is
+  // never mistaken for a settled one.
+  const selected = live ? 'border-amber bg-amber text-bg' : 'border-accent bg-accent text-accent-ink';
+  const idle = live
+    ? 'border-amber/50 bg-panel text-amber hover:border-amber'
+    : 'border-line bg-panel text-dim hover:border-accent hover:text-accent';
+
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       className={`cursor-pointer rounded-[4px] border px-[11px] py-[7px] font-mono text-[11px] tracking-[0.04em] transition-colors ${
-        active
-          ? 'border-accent bg-accent text-accent-ink'
-          : 'border-line bg-panel text-dim hover:border-accent hover:text-accent'
+        active ? selected : idle
       }`}
     >
       {label}
@@ -219,13 +235,25 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
   const [event, setEvent] = useState(() => data.weekly.at(-1)?.event ?? 1);
   const [monthKey, setMonthKey] = useState(() => data.monthly.at(-1)?.key ?? '');
 
-  const weekView = data.weekly.find((w) => w.event === event)?.view;
+  const liveEvent = data.live?.view ? data.live.event : null;
+  // The gameweek in play gets a pill of its own, after the settled ones.
+  const weeklyPills = [
+    ...data.weekly.map((w) => ({ event: w.event, label: w.label })),
+    ...(liveEvent !== null ? [{ event: liveEvent, label: `GW${liveEvent}` }] : []),
+  ];
+
+  const weekView =
+    liveEvent !== null && event === liveEvent
+      ? data.live!.view
+      : data.weekly.find((w) => w.event === event)?.view;
   const monthView = data.monthly.find((m) => m.key === monthKey)?.view;
+
+  const tabs = data.live ? [...BASE_TABS, { key: 'fixtures' as Tab, label: 'Fixtures' }] : BASE_TABS;
 
   return (
     <>
       <nav className="flex gap-7 pt-[26px]">
-        {TABS.map(({ key, label }) => (
+        {tabs.map(({ key, label }) => (
           <button
             key={key}
             type="button"
@@ -240,13 +268,14 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
         ))}
       </nav>
 
-      {tab === 'weekly' && data.weekly.length > 0 && (
+      {tab === 'weekly' && weeklyPills.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pt-5 pb-1">
-          {data.weekly.map((w) => (
+          {weeklyPills.map((w) => (
             <Pill
               key={w.event}
               label={w.label}
               active={w.event === event}
+              live={w.event === liveEvent}
               onClick={() => setEvent(w.event)}
             />
           ))}
@@ -273,6 +302,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
       {tab === 'monthly' && monthView && <Table key={`monthly-${monthKey}`} view={monthView} showSearch={data.showSearch} />}
       {tab === 'season' && <Table key="season" view={data.season} showSearch={data.showSearch} />}
       {tab === 'history' && <History history={data.history} />}
+      {tab === 'fixtures' && data.live && <Fixtures live={data.live} />}
     </>
   );
 }

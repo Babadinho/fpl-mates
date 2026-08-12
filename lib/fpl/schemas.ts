@@ -30,6 +30,9 @@ export const eventSchema = z.object({
 
 export const bootstrapSchema = z.object({
   events: z.array(eventSchema).min(1),
+  /** Needed for fixture short codes (ARS, BHA) and to map players to fixtures. */
+  teams: z.array(z.object({ id: z.number().int(), short_name: z.string(), name: z.string() })),
+  elements: z.array(z.object({ id: z.number().int(), team: z.number().int() })),
 });
 
 export type FplEvent = z.infer<typeof eventSchema>;
@@ -121,3 +124,86 @@ export const CHIP_LABELS: Record<string, string> = {
   '3xc': 'TC',
   manager: 'AM',
 };
+
+/* ------------------------------------------------------------- fixtures */
+
+export const fixtureSchema = z.object({
+  id: z.number().int(),
+  event: z.number().int().nullable(),
+  kickoff_time: z.string().nullable(),
+  /** True once the match has kicked off. */
+  started: z.boolean(),
+  /** Official confirmation. `finished_provisional` flips at the whistle. */
+  finished: z.boolean(),
+  finished_provisional: z.boolean(),
+  /** Elapsed minutes, 0 before kickoff and 90 at the end. */
+  minutes: z.number().int(),
+  team_h: z.number().int(),
+  team_a: z.number().int(),
+  team_h_score: z.number().int().nullable(),
+  team_a_score: z.number().int().nullable(),
+});
+
+export const fixturesSchema = z.array(fixtureSchema);
+export type FplFixture = z.infer<typeof fixtureSchema>;
+
+/* ----------------------------------------------------------------- live */
+
+/**
+ * Per-player stats during a gameweek.
+ *
+ * `bonus` is 0 until FPL awards it, which happens after a match is confirmed.
+ * `bps` is the raw score the award is derived from, so a live table has to
+ * compute provisional bonus from it — see lib/scoring/bonus.ts.
+ */
+export const liveElementSchema = z.object({
+  id: z.number().int(),
+  stats: z.object({
+    minutes: z.number().int(),
+    total_points: z.number().int(),
+    bps: z.number().int(),
+    bonus: z.number().int(),
+  }),
+});
+
+export const liveEventSchema = z.object({
+  elements: z.array(liveElementSchema),
+});
+
+export type FplLiveElement = z.infer<typeof liveElementSchema>;
+
+/* ---------------------------------------------------------------- picks */
+
+export const pickSchema = z.object({
+  element: z.number().int(),
+  position: z.number().int(),
+  /** 0 on the bench, 1 normally, 2 for captain, 3 under Triple Captain. */
+  multiplier: z.number().int(),
+  is_captain: z.boolean(),
+  is_vice_captain: z.boolean(),
+});
+
+export const entryPicksSchema = z.object({
+  active_chip: z.string().nullable(),
+  entry_history: z.object({
+    event: z.number().int(),
+    event_transfers_cost: z.number().int(),
+  }),
+  picks: z.array(pickSchema),
+});
+
+export type FplPick = z.infer<typeof pickSchema>;
+
+/* ------------------------------------------------- teams and elements */
+
+export const teamSchema = z.object({
+  id: z.number().int(),
+  short_name: z.string(),
+  name: z.string(),
+});
+
+/** Only the fields the live table needs; the rest of `elements` is ignored. */
+export const elementSchema = z.object({
+  id: z.number().int(),
+  team: z.number().int(),
+});

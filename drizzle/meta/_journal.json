@@ -29,6 +29,13 @@
       "when": 1786488872257,
       "tag": "0003_rename_points_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786571480359,
+      "tag": "0004_entry_picks",
+      "breakpoints": true
     }
   ]
 }

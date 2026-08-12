@@ -16,6 +16,8 @@
   --hair: oklch(0.93 0.01 300);
   --hover: oklch(0.955 0.01 300);
   --accent-ink: oklch(0.98 0.01 300);
+  /* Third status colour, for anything provisional or in play. */
+  --amber: oklch(0.62 0.14 70);
   --accent: var(--accent-light);
   --pop: var(--pop-light);
 }
@@ -29,6 +31,7 @@
   --hair: oklch(0.27 0.03 300);
   --hover: oklch(0.235 0.035 300);
   --accent-ink: oklch(0.18 0.03 300);
+  --amber: oklch(0.8 0.15 80);
   --accent: var(--accent-dark);
   --pop: var(--pop-dark);
 }
@@ -45,6 +48,7 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-pop: var(--pop);
+  --color-amber: var(--amber);
 
   --font-display: var(--font-bebas), Impact, sans-serif;
   --font-sans: var(--font-manrope), 'Helvetica Neue', Helvetica, sans-serif;

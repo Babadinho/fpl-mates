@@ -177,6 +177,14 @@ const schema = z.object({
    */
   USE_FIXTURES: boolEnv(false),
 
+  /**
+   * Provisional scores and the fixtures grid while a gameweek is in play.
+   * Costs two API requests per page load; turn off to poll only.
+   */
+  LIVE_SCORING: boolEnv(true),
+  /** How often the browser asks for fresh live scores, in seconds. */
+  LIVE_REFRESH_SECONDS: z.coerce.number().int().min(15).max(600).default(60),
+
   // ---- WhatsApp (absent = publisher disabled, web only) ------------------
   WHATSAPP_PHONE_NUMBER_ID: z.string().min(1).optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().min(1).optional(),
@@ -235,6 +243,11 @@ function load() {
     },
 
     cronSecret: env.CRON_SECRET,
+
+    live: {
+      enabled: env.LIVE_SCORING,
+      refreshSeconds: env.LIVE_REFRESH_SECONDS,
+    },
 
     /** Render the checked-in mock league instead of reading Postgres. */
     useFixtures: env.USE_FIXTURES,

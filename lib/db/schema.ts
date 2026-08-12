@@ -144,3 +144,27 @@ export const pollRuns = pgTable('poll_runs', {
   outcome: text('outcome'),
   detail: text('detail'),
 });
+
+/**
+ * A manager's team for one gameweek, cached for the live table.
+ *
+ * Picks are frozen at the deadline, so they are fetched once per manager per
+ * gameweek and read from here on every refresh afterwards. Without this, each
+ * live refresh would cost one request per manager instead of one in total.
+ */
+export const entryPicks = pgTable('entry_picks', {
+  entryId: integer('entry_id')
+    .notNull()
+    .references(() => managers.entryId, { onDelete: 'cascade' }),
+  event: smallint('event')
+    .notNull()
+    .references(() => gameweeks.event, { onDelete: 'cascade' }),
+  /** Element ids in pick order, positions 1–15. */
+  elementIds: integer('element_ids').array().notNull(),
+  /** Parallel to elementIds: 0 benched, 1 playing, 2 captain, 3 triple captain. */
+  multipliers: smallint('multipliers').array().notNull(),
+  /** FPL's chip name (bboost, 3xc, freehit, wildcard) or null. */
+  activeChip: text('active_chip'),
+  transferCost: smallint('transfer_cost').notNull().default(0),
+  fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.entryId, t.event] })]);
