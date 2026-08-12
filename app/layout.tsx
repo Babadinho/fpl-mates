@@ -15,19 +15,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `${leagueName} · ${seasonLabel}`,
     description: 'Weekly, monthly and season tables for a Fantasy Premier League mini-league.',
+    // Generated from ACCENT_COLOR / POP_COLOR so a self-hosted instance gets an
+    // icon in its own theme (section 11). The SVG carries both schemes itself;
+    // apple-icon.tsx rasterises the same mark, since iOS will not take an SVG.
     icons: {
-      // Two rasterised variants rather than one themed SVG: the mark is set in
-      // Bebas Neue, and a standalone SVG cannot reach the page's webfont — it
-      // falls back to Impact and the G comes out wrong. These PNGs were
-      // rendered with the real face.
-      //
-      // The browser picks by prefers-color-scheme, which follows the OS theme,
-      // not the in-page toggle — the icon lives in the browser chrome.
-      icon: [
-        { url: '/icon-512.png', type: 'image/png', media: '(prefers-color-scheme: light)' },
-        { url: '/icon-512-dark.png', type: 'image/png', media: '(prefers-color-scheme: dark)' },
-      ],
-      apple: { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+      icon: [{ url: '/api/icon.svg', type: 'image/svg+xml' }],
+      // Declared explicitly: setting `icons` overrides Next's file conventions,
+      // so app/apple-icon.tsx would otherwise generate but never be linked.
+      apple: [{ url: '/apple-icon', sizes: '180x180', type: 'image/png' }],
     },
   };
 }
