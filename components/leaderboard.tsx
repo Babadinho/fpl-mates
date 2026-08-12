@@ -265,7 +265,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
             type="button"
             onClick={() => setTab(key)}
             aria-current={tab === key}
-            className={`shrink-0 cursor-pointer border-b-2 pb-[14px] font-sans text-[11px] font-semibold tracking-[0.04em] whitespace-nowrap uppercase transition-colors sm:text-[13px] sm:tracking-[0.1em] ${
+            className={`shrink-0 cursor-pointer border-b-2 pb-[14px] font-sans text-[12px] font-semibold tracking-[0.04em] whitespace-nowrap uppercase transition-colors sm:text-[13px] sm:tracking-[0.1em] ${
               tab === key ? 'border-accent text-ink' : 'border-transparent text-dim hover:text-ink'
             }`}
           >
