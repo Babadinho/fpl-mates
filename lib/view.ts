@@ -276,8 +276,7 @@ function buildPreseason(
     // "once Gameweek 1 settles". They now update while matches are played.
     note:
       'Scores update here while matches are being played. The weekly, monthly ' +
-      'and season tables fill in on their own once FPL confirms the final ' +
-      'points — nobody has to enter anything.',
+      'and season tables fill in on their own once FPL confirms the final points.',
     joined: {
       heading: 'Managers in',
       meta: `${ordered.length} joined`,
