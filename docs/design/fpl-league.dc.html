@@ -32,9 +32,11 @@
     [data-r="rail"] { flex-wrap:nowrap !important; overflow-x:auto; scrollbar-width:none; padding-bottom:10px !important; }
     [data-r="rail"]::-webkit-scrollbar { display:none; }
     [data-r="tablehead"], [data-r="row"] { grid-template-columns:30px minmax(0,1fr) 68px !important; }
+    [data-r="joinedhead"], [data-r="joinedrow"] { grid-template-columns:30px minmax(0,1fr) 84px !important; }
     [data-r="c1"], [data-r="c2"] { display:none !important; }
     [data-r="history"] { grid-template-columns:1fr !important; gap:36px !important; }
     [data-r="fixgrid"] { grid-template-columns:repeat(2,1fr) !important; }
+
     [data-r="fixtures"] > div:first-child { flex-direction:column !important; align-items:flex-start !important; gap:8px !important; }
     [data-r="fixtures"] h2 { font-size:26px !important; }
     [data-r="toolbar"] { flex-direction:column !important; align-items:stretch !important; gap:10px !important; }
@@ -71,6 +73,7 @@
       </div>
     </header>
 
+    <sc-if value="{{ showHero }}" hint-placeholder-val="{{ true }}">
     <section data-r="hero" style="display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border-bottom:1px solid var(--line);">
       <div data-r="herocell" style="background:var(--bg); padding:26px 24px 28px; display:flex; flex-direction:column; gap:12px;">
         <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--dim);">{{ hero.week.label }}</div>
@@ -98,6 +101,8 @@
       </div>
     </section>
 
+    </sc-if>
+
     <nav data-r="tabs" style="display:flex; gap:28px; padding:26px 0 0;">
       <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
         <button type="button" onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
@@ -110,6 +115,60 @@
           <button type="button" onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</button>
         </sc-for>
       </div>
+    </sc-if>
+
+    <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex; flex-direction:column; align-items:flex-start; gap:14px; padding:64px 0 0;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--dim);">{{ empty.label }}</span>
+        <h2 style="margin:0; font-family:'Bebas Neue',Impact,sans-serif; font-size:44px; font-weight:400; letter-spacing:0.02em; line-height:0.95; text-transform:uppercase;">{{ empty.title }}</h2>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--accent);">{{ empty.countdown }}</span>
+        <p style="margin:6px 0 0; max-width:46ch; font-size:15px; line-height:1.6; color:var(--dim); text-wrap:pretty;">{{ empty.note }}</p>
+
+        <div style="width:100%; padding-top:48px;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:24px; padding-bottom:16px;">
+            <h3 style="margin:0; font-family:'Bebas Neue',Impact,sans-serif; font-size:28px; font-weight:400; letter-spacing:0.02em; text-transform:uppercase;">{{ joined.heading }}</h3>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">{{ joined.meta }}</span>
+          </div>
+
+          <sc-if value="{{ joined.big }}" hint-placeholder-val="{{ false }}">
+            <div data-r="toolbar" style="display:flex; align-items:center; gap:16px; padding:0 0 16px;">
+              <div style="flex:1 1 260px; max-width:300px;">
+                <input type="text" placeholder="Search manager or team" value="{{ joined.search.value }}" onChange="{{ joined.search.onChange }}" style="{{ joined.search.style }}" />
+              </div>
+            </div>
+          </sc-if>
+
+          <div data-r="joinedhead" style="display:grid; grid-template-columns:44px minmax(0,1fr) 200px 120px; padding:0 14px 10px; border-bottom:1px solid var(--line);">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim);">#</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim);">Manager</div>
+            <div data-r="c1" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim);">Team</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim); text-align:right;">Joined</div>
+          </div>
+
+          <sc-for list="{{ joined.rows }}" as="j" hint-placeholder-count="12">
+            <div data-r="joinedrow" style="display:grid; grid-template-columns:44px minmax(0,1fr) 200px 120px; align-items:center; padding:14px; border-bottom:1px solid var(--hair); transition:background 120ms ease;" style-hover="background:var(--hover);">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--dim);">{{ j.num }}</div>
+              <div style="font-size:16px; font-weight:500; letter-spacing:-0.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ j.name }}</div>
+              <div data-r="c1" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ j.team }}</div>
+              <div style="text-align:right;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:13px;">{{ j.joined }}</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">{{ j.time }}</div>
+              </div>
+            </div>
+          </sc-for>
+
+          <sc-if value="{{ joined.pager.show }}" hint-placeholder-val="{{ false }}">
+            <div data-r="pager" style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 0 0;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">{{ joined.pager.range }}</span>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <button type="button" onClick="{{ joined.pager.prev }}" style="{{ joined.pager.prevStyle }}">Prev</button>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim); min-width:88px; text-align:center;">{{ joined.pager.page }}</span>
+                <button type="button" onClick="{{ joined.pager.next }}" style="{{ joined.pager.nextStyle }}">Next</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </section>
     </sc-if>
 
     <sc-if value="{{ isTable }}" hint-placeholder-val="{{ true }}">
@@ -146,7 +205,7 @@
                     <span style="width:6px; height:6px; border-radius:50%; background:var(--pop); flex:none;"></span>
                   </sc-if>
                 </div>
-                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ row.team }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ row.team }}</span>
               </div>
               <sc-if value="{{ row.chip }}" hint-placeholder-val="{{ false }}">
                 <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--line); border-radius:3px; padding:3px 6px; flex:none;">{{ row.chip }}</span>
@@ -234,7 +293,7 @@
 </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;leagueName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;The Sunday League&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;playedGw&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:12,&quot;min&quot;:1,&quot;max&quot;:38,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;liveMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;leagueSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:240,&quot;min&quot;:8,&quot;max&quot;:400,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.42 0.17 305)&quot;,&quot;options&quot;:[&quot;oklch(0.42 0.17 305)&quot;,&quot;oklch(0.45 0.16 255)&quot;,&quot;oklch(0.45 0.17 25)&quot;,&quot;oklch(0.35 0.03 300)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;pop&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.72 0.19 145)&quot;,&quot;options&quot;:[&quot;oklch(0.72 0.19 145)&quot;,&quot;oklch(0.78 0.17 190)&quot;,&quot;oklch(0.78 0.16 100)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBench&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;leagueName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;The Sunday League&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;preseason&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;playedGw&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:12,&quot;min&quot;:1,&quot;max&quot;:38,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;liveMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;leagueSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:240,&quot;min&quot;:8,&quot;max&quot;:400,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.42 0.17 305)&quot;,&quot;options&quot;:[&quot;oklch(0.42 0.17 305)&quot;,&quot;oklch(0.45 0.16 255)&quot;,&quot;oklch(0.45 0.17 25)&quot;,&quot;oklch(0.35 0.03 300)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;pop&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.72 0.19 145)&quot;,&quot;options&quot;:[&quot;oklch(0.72 0.19 145)&quot;,&quot;oklch(0.78 0.17 190)&quot;,&quot;oklch(0.78 0.16 100)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBench&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
 class Component extends DCLogic {
   state = { tab: 'weekly', gw: 0, month: '', dark: false, query: '', page: 0, now: Date.now(), fixOpen: true };
   PAGE_SIZE = 25;
@@ -251,7 +310,7 @@ class Component extends DCLogic {
     { key: 'Apr', label: 'April', gws: [31, 32, 33, 34, 35] },
     { key: 'May', label: 'May', gws: [36, 37, 38] }
   ];
-  get LIVE() { return (this.props.liveMode ?? true) && this.PLAYED < 38; }
+  get LIVE() { return (this.props.liveMode ?? true) && this.PLAYED > 0 && this.PLAYED < 38; }
   get LIVE_GW() { return this.PLAYED + 1; }
 
   FIXTURES = [
@@ -263,7 +322,8 @@ class Component extends DCLogic {
 
   get SIZE() { return Math.max(4, Math.min(400, Math.round(this.props.leagueSize ?? 240))); }
 
-  get PLAYED() { return Math.max(1, Math.min(38, Math.round(this.props.playedGw ?? 38))); }
+  get PLAYED() { return Math.max(0, Math.min(38, Math.round(this.props.playedGw ?? 38))); }
+  get PRESEASON() { return (this.props.preseason ?? false) || this.PLAYED === 0; }
 
   people = [
     ['Dev Mehta', 'Salah Days a Week'], ['Tom Whitfield', 'Bench Warmers FC'],
@@ -275,7 +335,10 @@ class Component extends DCLogic {
   ];
 
   componentDidMount() {
-    this._deadline = Date.now() + 1000 * 60 * 60 * 41 + 1000 * 60 * 17;
+    const d = new Date();
+    d.setHours(14, 30, 0, 0);
+    d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7));
+    this._deadline = d.getTime();
     this._tick = setInterval(() => this.setState({ now: Date.now() }), 1000);
     try {
       const v = localStorage.getItem('fpl-dark');
@@ -306,12 +369,70 @@ class Component extends DCLogic {
 
   componentWillUnmount() { clearInterval(this._tick); }
 
+  shortDeadline() {
+    const d = new Date(this._deadline || Date.now());
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return days[d.getDay()] + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  deadlineLabel() {
+    const d = new Date(this._deadline || Date.now());
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const mon = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return days[d.getDay()] + ' ' + d.getDate() + ' ' + mon[d.getMonth()];
+  }
+
   countdown() {
     const ms = Math.max(0, (this._deadline || Date.now()) - this.state.now);
     const d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24;
     const m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
     const p = n => String(n).padStart(2, '0');
     return d + 'd ' + p(h) + ':' + p(m) + ':' + p(s);
+  }
+
+  joinedTable(t) {
+    const day = 86400000;
+    const all = this.roster().map(([name, team], i) => {
+      const ms = this._deadline - (this.SIZE - i) * day * 0.9 - (i % 5) * day * 3;
+      const d = new Date(ms);
+      const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return {
+        name, team,
+        joined: d.getDate() + ' ' + mon[d.getMonth()],
+        time: String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'),
+        ms
+      };
+    }).sort((a, b) => a.ms - b.ms);
+
+    const q = this.state.query.trim().toLowerCase();
+    const filtered = q ? all.filter(r => (r.name + ' ' + r.team).toLowerCase().includes(q)) : all;
+    const pageCount = Math.max(1, Math.ceil(filtered.length / this.PAGE_SIZE));
+    const page = Math.min(this.state.page, pageCount - 1);
+    const start = page * this.PAGE_SIZE;
+    const btn = on => `appearance:none; cursor:${on ? 'pointer' : 'default'}; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; padding:8px 14px; border-radius:4px; border:1px solid ${t.line}; background:${t.panel}; color:${on ? t.ink : t.dim}; opacity:${on ? 1 : 0.45};`;
+
+    return {
+      heading: 'Managers in',
+      meta: this.SIZE + ' joined',
+      rows: filtered.slice(start, start + this.PAGE_SIZE).map((r, i) => ({
+        num: String(start + i + 1).padStart(2, '0'), name: r.name, team: r.team, joined: r.joined, time: r.time
+      })),
+      big: all.length > this.PAGE_SIZE,
+      search: {
+        value: this.state.query,
+        onChange: e => this.setState({ query: e.target.value, page: 0 }),
+        style: `appearance:none; width:100%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12px; padding:9px 12px; border-radius:4px; border:1px solid ${t.line}; background:${t.panel}; color:${t.ink}; outline:none;`
+      },
+      pager: {
+        show: filtered.length > this.PAGE_SIZE,
+        range: (start + 1) + '\u2013' + Math.min(start + this.PAGE_SIZE, filtered.length) + ' of ' + filtered.length + (q ? ' matching' : ''),
+        page: 'Page ' + (page + 1) + ' / ' + pageCount,
+        prevStyle: btn(page > 0),
+        nextStyle: btn(page < pageCount - 1),
+        prev: () => this.setState(s => ({ page: Math.max(0, s.page - 1) })),
+        next: () => this.setState(s => ({ page: Math.min(pageCount - 1, s.page + 1) }))
+      }
+    };
   }
 
   liveRows() {
@@ -375,11 +496,6 @@ class Component extends DCLogic {
   renderVals() {
     const { tab, dark } = this.state;
     const played = this.PLAYED;
-    const months = this.months();
-    const maxGw = this.LIVE ? this.LIVE_GW : played;
-    const gw = Math.min(this.state.gw || maxGw, maxGw);
-    const curMonth = months[months.length - 1];
-    const month = months.some(m => m.key === this.state.month) ? this.state.month : curMonth.key;
     const accent = this.props.accent ?? 'oklch(0.42 0.17 305)';
     const pop = this.props.pop ?? 'oklch(0.72 0.19 145)';
     const showBench = this.props.showBench ?? true;
@@ -404,6 +520,48 @@ class Component extends DCLogic {
     }));
 
     const amber = dark ? 'oklch(0.8 0.15 80)' : 'oklch(0.62 0.14 70)';
+
+    if (this.PRESEASON) {
+      return {
+        theme, darkIcon: dark ? '\u2600' : '\u263e',
+        toggleDark: () => this.setState(s => {
+          try { localStorage.setItem('fpl-dark', s.dark ? '0' : '1'); } catch (e) {}
+          return { dark: !s.dark };
+        }),
+        leagueName: this.props.leagueName ?? 'The Sunday League',
+        liveDot: t.dim,
+        status: { label: 'PRESEASON', sub: 'no gameweeks played yet', polled: 'not yet polled' },
+        tabs,
+        showHero: false, showPills: false, isTable: false, isHistory: false,
+        isFixtures: tab === 'fixtures',
+        isEmpty: tab !== 'fixtures',
+        empty: {
+          label: 'Nothing to show yet',
+          title: 'Season starts ' + this.deadlineLabel(),
+          countdown: this.countdown() + ' to the Gameweek 1 deadline',
+          note: 'Weekly, monthly and season tables fill in automatically once Gameweek 1 settles. Nobody has to enter anything.'
+        },
+        joined: this.joinedTable(t),
+        fixtures: {
+          title: 'Gameweek 1',
+          deadline: 'Deadline ' + this.shortDeadline() + ' \u00b7 ' + this.countdown(),
+          state: 'Not started',
+          note: 'Kickoff times are provisional until the Premier League confirms TV selections.',
+          list: this.FIXTURES.map(([h, a]) => ({
+            home: h, away: a, score: 'Sat 15:00', clock: '',
+            clockStyle: '', scoreStyle: `font-family:'JetBrains Mono',monospace; font-size:14px; color:${t.dim};`
+          }))
+        }
+      };
+    }
+
+
+    const months = this.months();
+    const maxGw = this.LIVE ? this.LIVE_GW : played;
+    const gw = Math.min(this.state.gw || maxGw, maxGw);
+    const curMonth = months[months.length - 1];
+    const month = months.some(m => m.key === this.state.month) ? this.state.month : curMonth.key;
+
     const pillStyle = on => `appearance:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.04em; padding:7px 11px; border-radius:4px; border:1px solid ${on ? t.accent : t.line}; background:${on ? t.accent : t.panel}; color:${on ? t.accentInk : t.dim};`;
 
     let pills = [];
@@ -424,7 +582,7 @@ class Component extends DCLogic {
     let rows = [], table = {};
     if (tab === 'weekly' && this.LIVE && gw === this.LIVE_GW) {
       const list = this.liveRows();
-      rows = list.map(r => mk(r, [r.net, '+' + r.prov, r.cost ? '\u2212' + r.cost : '\u2014']));
+      rows = list.map(r => mk(r, [r.net, '+' + r.prov, r.cost ? '\u2212' + r.cost : '\u2013']));
       table = {
         title: 'Gameweek ' + this.LIVE_GW,
         meta: 'In play \u00b7 6 of 10 fixtures started \u00b7 provisional',
@@ -434,7 +592,7 @@ class Component extends DCLogic {
       };
     } else if (tab === 'weekly') {
       const list = this.weekTable(gw);
-      rows = list.map(r => mk(r, [r.net, r.cost ? '−' + r.cost : '—', showBench ? r.bench : '—']));
+      rows = list.map(r => mk(r, [r.net, r.cost ? '−' + r.cost : '–', showBench ? r.bench : '–']));
       table = {
         title: 'Gameweek ' + gw, meta: list.length + ' managers \u00b7 avg ' + Math.round(list.reduce((a, b) => a + b.net, 0) / list.length),
         h0: 'Net', h1: 'Hits', h2: 'Bench', metaStyle: '',
@@ -453,7 +611,7 @@ class Component extends DCLogic {
       const list = this.seasonTable(played);
       rows = list.map(r => mk(r, [r.net, '−' + r.cost, r.best]));
       table = {
-        title: 'Season table', meta: played === 38 ? 'Final \u2014 38 of 38' : 'After GW ' + played + ' of 38',
+        title: 'Season table', meta: played === 38 ? 'Final \u00b7 38 of 38' : 'After GW ' + played + ' of 38',
         h0: 'Total', h1: 'Hits', h2: 'Best GW', metaStyle: '',
         note: 'Mirrors the official FPL standings, recomputed from stored per-gameweek rows so any rule change can be applied retroactively.'
       };
@@ -507,10 +665,10 @@ class Component extends DCLogic {
       liveDot: this.LIVE ? amber : t.pop,
       fixtures: {
         title: this.LIVE ? 'Gameweek ' + this.LIVE_GW : 'Gameweek 38',
-        deadline: this.LIVE ? 'Deadline Sat 14:30 \u00b7 ' + this.countdown() : '2026/27 finished',
+        deadline: this.LIVE ? 'Deadline ' + this.shortDeadline() + ' \u00b7 ' + this.countdown() : '2026/27 finished',
         state: this.LIVE ? '6 of 10 played' : 'Season complete',
         note: this.LIVE
-          ? 'Scores refresh every few minutes while fixtures are in play. A gameweek is only counted once FPL marks it data_checked \u2014 until then the live table is a projection.'
+          ? 'Scores refresh every few minutes while fixtures are in play. A gameweek is only counted once FPL marks it data_checked; until then the live table is a projection.'
           : 'No fixtures remaining this season.',
         list: this.FIXTURES.map(([h, a, min, hs, as]) => ({
           home: h, away: a,
@@ -522,12 +680,12 @@ class Component extends DCLogic {
       },
       status: {
         label: this.LIVE ? 'GW ' + this.LIVE_GW + ' LIVE \u00b7 PROVISIONAL' : 'GW ' + played + ' SETTLED',
-        sub: seasonDone ? 'season complete \u00b7 2027/28 opens in July' : this.LIVE ? 'GW ' + played + ' settled \u00b7 bonus not yet applied to GW ' + this.LIVE_GW : 'bonus applied \u00b7 GW ' + (played + 1) + ' deadline Sat 14:30',
+        sub: seasonDone ? 'season complete \u00b7 2027/28 opens in July' : this.LIVE ? 'GW ' + played + ' settled \u00b7 bonus not yet applied to GW ' + this.LIVE_GW : 'bonus applied \u00b7 GW ' + (played + 1) + ' deadline ' + this.shortDeadline(),
         polled: '18 minutes ago'
       },
       hero: {
         week: { label: 'Gameweek ' + played + ' winner', name: this.name(wk.id), value: wk.net + ' pts', sub: wk.cost ? 'after a −' + wk.cost + ' hit' : 'no hits taken' },
-        month: { label: curMonth.label + (monthDone ? ' — winner' : ' — leading'), name: this.name(mo.id), value: mo.net + ' pts', sub: 'across ' + mo.n + ' gameweeks' },
+        month: { label: curMonth.label + (monthDone ? ' winner' : ' so far'), name: this.name(mo.id), value: mo.net + ' pts', sub: 'across ' + mo.n + ' gameweeks' },
         season: { label: seasonDone ? 'Champion 2026/27' : 'Season leader', name: this.name(se.id), value: se.net + ' pts', sub: seasonDone ? 'won by ' + (se.net - this.seasonTable(played)[1].net) + ' pts' : 'after ' + played + ' of 38' }
       },
       search: {
@@ -538,6 +696,7 @@ class Component extends DCLogic {
       pager,
       bigLeague: this.SIZE > this.PAGE_SIZE,
       tabs, pills, rows, table, weeklyWinners, monthlyWinners,
+      showHero: true, isEmpty: false,
       showPills: tab === 'weekly' || tab === 'monthly',
       isTable: tab !== 'history' && tab !== 'fixtures',
       isHistory: tab === 'history',

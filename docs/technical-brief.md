@@ -447,3 +447,21 @@ Non-negotiable: **a live gameweek never writes a winner.** It is a read-only pro
 ### Polling
 
 The hourly cron is too slow for a live view. During a gameweek's fixture window, poll `/api/fixtures/?event=N` and live points every 2–5 minutes; outside it, fall back to hourly. Derive the window from `kickoff_time` of the first and last fixture plus a margin — do not poll fast for a whole weekend. This makes the rate-limit etiquette in section 11 more important, not less: cache aggressively, back off on 429, and never let a self-hosted instance poll fast when no ball is being kicked.
+
+---
+
+## 13. Preseason and empty state
+
+Before Gameweek 1 there is nothing to rank, so the page shows a different thing rather than an empty table.
+
+The hero strip and the gameweek pills are not rendered. The status pill reads `PRESEASON` with a neutral dot. In place of the tables:
+
+- Eyebrow "Nothing to show yet", a headline giving the season start date, and a live countdown to the Gameweek 1 deadline.
+- A short line stating the tables populate themselves once Gameweek 1 settles.
+- A **Managers in** table: rank number, manager name, team name, and join date with time. Sorted oldest join first. Carries the same search box and 25-row pager as the league tables, on the same breakpoints.
+
+### Join timestamps
+
+The classic-league standings response includes a `new_entries` block whose results carry `joined_time` alongside `entry`, `entry_name` and the player name. That timestamp is only present while an entry is still classed as new, so the poller must capture it on first sight and persist it to the `joined` column; it cannot be recovered later. For entries already present before this tool was pointed at the league, leave `joined` null and display a dash rather than guessing.
+
+The Fixtures tab still works in preseason, showing Gameweek 1 fixtures with kickoff times and no scores.

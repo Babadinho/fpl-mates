@@ -62,18 +62,7 @@ export default async function Page() {
               </div>
             ))}
           </section>
-        ) : (
-          data.emptyState && (
-            <section className="border-b border-line py-14">
-              <p className="display m-0 text-[38px] tracking-[0.01em]">
-                {data.emptyState.headline}
-              </p>
-              <p className="mt-4 max-w-[52ch] font-mono text-[12px] leading-[1.9] text-dim">
-                {data.emptyState.detail}
-              </p>
-            </section>
-          )
-        )}
+        ) : null}
 
         <Leaderboard data={data} />
 

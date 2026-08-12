@@ -79,7 +79,19 @@ export interface LeaderboardView {
     note: string;
     stateLabel: string;
   } | null;
-  emptyState: { headline: string; detail: string } | null;
+  /** Pre-season: no gameweek has settled, so there is nothing to rank yet. */
+  preseason: {
+    label: string;
+    title: string;
+    /** ISO deadline for the client-side countdown. */
+    deadline: string | null;
+    note: string;
+    joined: {
+      heading: string;
+      meta: string;
+      rows: { num: string; name: string; team: string; joined: string; time: string }[];
+    };
+  } | null;
   whatsappEnabled: boolean;
   totalGameweeks: number;
 }
@@ -87,6 +99,8 @@ export interface LeaderboardView {
 interface SourceData {
   leagueName: string;
   managers: ManagerRef[];
+  /** Roster with join times, for the pre-season "managers in" table. */
+  joined: { entryId: number; playerName: string; entryName: string; joinedTime: Date | null }[];
   scores: ScoreRow[];
   weeks: { event: number; deadlineTime: Date; monthKey: string; dataChecked: boolean; finished: boolean }[];
   lastPolled: Date | null;
@@ -104,6 +118,12 @@ function fromFixtures(timezone: string): SourceData {
   return {
     leagueName: mock.leagueName,
     managers: mock.managers,
+    joined: mock.managers.map((m, i) => ({
+      entryId: m.entryId,
+      playerName: m.playerName,
+      entryName: m.entryName,
+      joinedTime: new Date(Date.now() - (mock.managers.length - i) * 86_400_000),
+    })),
     scores: mock.scores,
     weeks: mock.gameweeks.map((g) => ({
       event: g.event,
@@ -138,6 +158,12 @@ async function fromDatabase(): Promise<SourceData> {
       playerName: m.playerName,
       entryName: m.entryName,
       joinedGw: m.joinedGw,
+    })),
+    joined: roster.map((m) => ({
+      entryId: m.entryId,
+      playerName: m.playerName,
+      entryName: m.entryName,
+      joinedTime: m.joinedTime,
     })),
     scores: scores.map((s) => ({
       entryId: s.entryId,
@@ -203,6 +229,64 @@ function deadlineLabel(date: Date, timezone: string): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+/** "Friday 21 August" — the long form the pre-season headline uses. */
+function longDate(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(date);
+}
+
+/**
+ * The pre-season view: nothing has settled, so there is no table to rank.
+ * Shows when the season starts and who has joined so far.
+ */
+function buildPreseason(
+  source: SourceData,
+  nextWeek: SourceData['weeks'][number] | undefined,
+  timezone: string,
+): NonNullable<LeaderboardView['preseason']> {
+  const dayMonth = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    day: 'numeric',
+    month: 'short',
+  });
+  const clock = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  // Oldest join first, so the table reads as the order people arrived.
+  const ordered = [...source.joined].sort(
+    (a, b) => (a.joinedTime?.getTime() ?? 0) - (b.joinedTime?.getTime() ?? 0),
+  );
+
+  return {
+    label: 'Nothing to show yet',
+    title: nextWeek
+      ? `Season starts ${longDate(nextWeek.deadlineTime, timezone)}`
+      : 'Season not scheduled yet',
+    deadline: nextWeek ? nextWeek.deadlineTime.toISOString() : null,
+    note:
+      'Weekly, monthly and season tables fill in automatically once Gameweek 1 ' +
+      'settles. Nobody has to enter anything.',
+    joined: {
+      heading: 'Managers in',
+      meta: `${ordered.length} joined`,
+      rows: ordered.map((m, i) => ({
+        num: String(i + 1).padStart(2, '0'),
+        name: m.playerName,
+        team: m.entryName,
+        joined: m.joinedTime ? dayMonth.format(m.joinedTime) : '—',
+        time: m.joinedTime ? clock.format(m.joinedTime) : '',
+      })),
+    },
+  };
 }
 
 /* ---------------------------------------------------------------- build */
@@ -458,16 +542,18 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
           ? `GW ${provisional.event} PROVISIONAL`
           : seasonStarted
             ? `GW ${lastSettled} SETTLED`
-            : 'PRE-SEASON',
+            : 'PRESEASON',
       sub: liveInPlay
         ? seasonStarted
           ? `GW ${lastSettled} final · GW ${live!.event} still playing`
           : `GW ${live!.event} in play`
         : provisional
           ? 'waiting for FPL to apply bonus points'
-          : nextWeek
-            ? `GW ${nextWeek.event} deadline ${deadlineLabel(nextWeek.deadlineTime, tz)}`
-            : 'season complete',
+          : !seasonStarted
+            ? 'no gameweeks played yet'
+            : nextWeek
+              ? `GW ${nextWeek.event} deadline ${deadlineLabel(nextWeek.deadlineTime, tz)}`
+              : 'season complete',
       polled: relativeTime(source.lastPolled),
     },
     hero,
@@ -475,14 +561,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     monthly,
     season,
     history,
-    emptyState: seasonStarted
-      ? null
-      : {
-          headline: 'No gameweeks scored yet',
-          detail: nextWeek
-            ? `Season starts with GW${nextWeek.event} on ${deadlineLabel(nextWeek.deadlineTime, tz)}. Weekly and monthly tables appear here once bonus points are applied and the gameweek settles.`
-            : 'Waiting for the fixture list.',
-        },
+    preseason: seasonStarted ? null : buildPreseason(source, nextWeek, tz),
     whatsappEnabled: cfg.whatsapp !== null,
     totalGameweeks: source.weeks.length,
   };

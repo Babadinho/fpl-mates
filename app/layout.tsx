@@ -73,6 +73,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       suppressHydrationWarning
+      // The font variables must sit on :root. --font-display is declared there
+      // as `var(--font-bebas), ...`, and a var() inside a custom property is
+      // substituted where it is DECLARED, not where it is used — so with the
+      // variables on <body> the token was invalid at :root and every heading
+      // silently inherited the body font instead of Bebas.
+      className={`${bebas.variable} ${manrope.variable} ${jetbrains.variable}`}
       style={
         {
           '--accent-light': theme.light.accent,
@@ -85,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className={`${bebas.variable} ${manrope.variable} ${jetbrains.variable} font-sans`}>
+      <body className="font-sans">
         {children}
       </body>
     </html>

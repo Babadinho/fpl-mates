@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Fixtures } from './fixtures';
+import { Preseason } from './preseason';
 import { PAGE_SIZE, type LeaderboardView, type TableView, type UiRow } from '@/lib/view';
 
 type Tab = 'weekly' | 'monthly' | 'season' | 'history' | 'fixtures';
@@ -268,7 +269,11 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
         ))}
       </nav>
 
-      {tab === 'weekly' && weeklyPills.length > 0 && (
+      {data.preseason && tab !== 'fixtures' ? (
+        <Preseason preseason={data.preseason} showSearch={data.showSearch} />
+      ) : null}
+
+      {!data.preseason && tab === 'weekly' && weeklyPills.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pt-5 pb-1">
           {weeklyPills.map((w) => (
             <Pill
@@ -282,7 +287,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
         </div>
       )}
 
-      {tab === 'monthly' && data.monthly.length > 0 && (
+      {!data.preseason && tab === 'monthly' && data.monthly.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pt-5 pb-1">
           {data.monthly.map((m) => (
             <Pill
@@ -298,10 +303,10 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
       {/* Keyed so switching gameweek, month or tab remounts the table and
           drops you back on page one — a stale page 3 on a one-page table
           would otherwise look like an empty leaderboard. */}
-      {tab === 'weekly' && weekView && <Table key={`weekly-${event}`} view={weekView} showSearch={data.showSearch} />}
-      {tab === 'monthly' && monthView && <Table key={`monthly-${monthKey}`} view={monthView} showSearch={data.showSearch} />}
-      {tab === 'season' && <Table key="season" view={data.season} showSearch={data.showSearch} />}
-      {tab === 'history' && <History history={data.history} />}
+      {!data.preseason && tab === 'weekly' && weekView && <Table key={`weekly-${event}`} view={weekView} showSearch={data.showSearch} />}
+      {!data.preseason && tab === 'monthly' && monthView && <Table key={`monthly-${monthKey}`} view={monthView} showSearch={data.showSearch} />}
+      {!data.preseason && tab === 'season' && <Table key="season" view={data.season} showSearch={data.showSearch} />}
+      {!data.preseason && tab === 'history' && <History history={data.history} />}
       {tab === 'fixtures' && data.live && <Fixtures live={data.live} />}
     </>
   );
