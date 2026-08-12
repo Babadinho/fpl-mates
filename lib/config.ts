@@ -119,6 +119,21 @@ const schema = z.object({
   LEAGUE_DISPLAY_NAME: z.string().min(1).optional(),
   /** e.g. "2026/27". Undefined = derived from the bootstrap gameweek deadlines. */
   SEASON_LABEL: z.string().min(1).optional(),
+  /**
+   * Canonical origin, used to make share-preview image URLs absolute.
+   * Falls back to the domain Vercel injects, then to localhost, so a fork
+   * never advertises somebody else's site.
+   */
+  SITE_URL: z
+    .string()
+    .optional()
+    .transform((v) => {
+      const explicit = v?.trim();
+      if (explicit) return explicit.replace(/\/+$/, '');
+      const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+      return vercel ? `https://${vercel}` : 'http://localhost:3000';
+    }),
+
   /** Small uppercase line above the league name in the header. */
   SITE_EYEBROW: z
     .string()
@@ -220,6 +235,7 @@ function load() {
       leagueName: env.LEAGUE_DISPLAY_NAME, // undefined = fall back to the API's league.name
       seasonLabel: env.SEASON_LABEL, // undefined = derive from deadlines
       eyebrow: env.SITE_EYEBROW,
+      url: env.SITE_URL,
       showBenchColumn: env.SHOW_BENCH_COLUMN,
       searchMode: env.SHOW_SEARCH,
     },

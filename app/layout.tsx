@@ -37,9 +37,20 @@ export async function generateMetadata(): Promise<Metadata> {
   // Falls back to the league name stored by the poller, so the tab title is
   // right without anyone setting LEAGUE_DISPLAY_NAME.
   const { leagueName, seasonLabel } = await getLeaderboardView();
+  const cfg = getConfig();
+  const title = `${leagueName} · ${seasonLabel}`;
+  const description =
+    'Weekly, monthly and season tables for a Fantasy Premier League mini-league.';
+
   return {
-    title: `${leagueName} · ${seasonLabel}`,
-    description: 'Weekly, monthly and season tables for a Fantasy Premier League mini-league.',
+    // Needed to make the generated share image an absolute URL; without it
+    // most scrapers ignore the tag. Configurable, so a fork never advertises
+    // somebody else's domain.
+    metadataBase: new URL(cfg.site.url),
+    title,
+    description,
+    openGraph: { title, description, type: 'website', siteName: leagueName },
+    twitter: { card: 'summary_large_image', title, description },
     // Generated from ACCENT_COLOR / POP_COLOR so a self-hosted instance gets an
     // icon in its own theme (section 11). The SVG carries both schemes itself;
     // apple-icon.tsx rasterises the same mark, since iOS will not take an SVG.

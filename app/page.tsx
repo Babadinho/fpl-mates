@@ -12,7 +12,7 @@ export default async function Page() {
     <div className="min-h-screen px-5 pb-24 sm:px-8">
       <div className="mx-auto max-w-[1060px]">
         {/* ---------------------------------------------------------- header */}
-        <header className="flex flex-col gap-6 border-b border-line pt-11 pb-[34px] sm:flex-row sm:items-end sm:justify-between sm:gap-8">
+        <header className="flex flex-col gap-6 border-b border-line pt-7 pb-[34px] sm:flex-row sm:items-end sm:justify-between sm:gap-8 sm:pt-8">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2.5">
               <span className="block h-[22px] w-[22px] rounded-[4px] bg-accent" />

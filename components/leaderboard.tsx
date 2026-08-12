@@ -258,14 +258,14 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
         letting the page scroll sideways, and the buttons refuse to shrink so
         labels never truncate mid-word.
       */}
-      <nav className="-mx-5 flex gap-5 overflow-x-auto px-5 pt-[26px] [scrollbar-width:none] sm:mx-0 sm:gap-7 sm:px-0 [&::-webkit-scrollbar]:hidden">
+      <nav className="-mx-5 flex gap-3.5 overflow-x-auto px-5 pt-[26px] [scrollbar-width:none] sm:mx-0 sm:gap-7 sm:px-0 [&::-webkit-scrollbar]:hidden">
         {tabs.map(({ key, label }) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
             aria-current={tab === key}
-            className={`shrink-0 cursor-pointer border-b-2 pb-[14px] font-sans text-[13px] font-semibold tracking-[0.1em] whitespace-nowrap uppercase transition-colors ${
+            className={`shrink-0 cursor-pointer border-b-2 pb-[14px] font-sans text-[11px] font-semibold tracking-[0.04em] whitespace-nowrap uppercase transition-colors sm:text-[13px] sm:tracking-[0.1em] ${
               tab === key ? 'border-accent text-ink' : 'border-transparent text-dim hover:text-ink'
             }`}
           >
