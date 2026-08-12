@@ -79,15 +79,23 @@ export function Preseason({
 
   return (
     <section className="flex flex-col items-start gap-3.5 pt-16">
-      <span className="label">{preseason.label}</span>
-      <h2 className="display m-0 text-[44px] tracking-[0.02em]">{preseason.title}</h2>
-      <span className="font-mono text-[13px] text-accent">
-        {countdown ? `${countdown} to the Gameweek 1 deadline` : 'Counting down to Gameweek 1'}
-      </span>
-      {/* The design specifies 46ch, but our copy is longer than the export's
-          and broke to three cramped lines. 70ch is still inside a comfortable
-          reading measure and settles it at two. */}
-      <p className="mt-1.5 max-w-[70ch] text-[15px] leading-[1.6] text-dim">{preseason.note}</p>
+      {/*
+        `w-fit` sizes this block to its widest child, which is the heading.
+        The note then carries `w-0 min-w-full`: w-0 stops it contributing to
+        that intrinsic width, min-w-full makes it fill it. Net effect — the
+        note wraps to exactly the heading's width, whatever the date says,
+        with no measurement and no magic number.
+      */}
+      <div className="flex w-fit flex-col items-start gap-3.5">
+        <span className="label">{preseason.label}</span>
+        <h2 className="display m-0 text-[44px] tracking-[0.02em]">{preseason.title}</h2>
+        <span className="font-mono text-[13px] text-accent">
+          {countdown ? `${countdown} to the Gameweek 1 deadline` : 'Counting down to Gameweek 1'}
+        </span>
+        <p className="mt-1.5 w-0 min-w-full text-[15px] leading-[1.6] text-dim">
+          {preseason.note}
+        </p>
+      </div>
 
       <div className="w-full pt-12">
         <div className="flex items-baseline justify-between gap-6 pb-4">
