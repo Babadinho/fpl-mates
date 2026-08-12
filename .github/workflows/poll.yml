@@ -1,0 +1,44 @@
+# Hourly trigger for the poller.
+#
+# Vercel's Hobby plan limits cron to once per day, which would mean a weekly
+# winner appearing up to 24 hours after the gameweek settles. /api/poll is an
+# ordinary authenticated endpoint, so this calls it hourly instead — free, and
+# it works on any host.
+#
+# The daily cron in vercel.json is kept as a safety net: the poller processes
+# whatever is outstanding rather than only what is new, so a missed hour costs
+# nothing and a missed day is caught up automatically.
+#
+# Requires two repository secrets:
+#   POLL_URL      https://<your-app>.vercel.app/api/poll
+#   CRON_SECRET   the same value set in Vercel
+name: Poll FPL
+
+on:
+  schedule:
+    # UTC. Deliberately not on the hour — see section 11 of the technical brief.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger the poller
+        run: |
+          if [ -z "${{ secrets.POLL_URL }}" ]; then
+            echo "POLL_URL secret is not set"; exit 1
+          fi
+          status=$(curl -sS --max-time 120 \
+            -o response.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.POLL_URL }}")
+          echo "HTTP $status"
+          cat response.json; echo
+          # 'skipped' is a healthy 200. Only a real failure should go red.
+          [ "$status" = "200" ]

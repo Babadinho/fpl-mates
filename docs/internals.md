@@ -234,9 +234,22 @@ cron expression is literal and a self-hoster edits the file. Everything the
 poller does at runtime — concurrency, cache duration, tie-break rules — is env
 driven; only the trigger is not.
 
-Vercel's Hobby plan limits cron to once daily. For hourly polling that means Pro,
-or an external trigger: `/api/poll` is an ordinary authenticated endpoint, so a
-GitHub Actions schedule calling it with the bearer token works just as well.
+**Vercel's Hobby plan rejects any cron that runs more than once a day** — the
+deploy fails outright with "Hobby accounts are limited to daily cron jobs". So
+the schedule is split:
+
+- `vercel.json` keeps a **daily** cron as a safety net.
+- `.github/workflows/poll.yml` calls the same endpoint **hourly**, free, using
+  two repository secrets (`POLL_URL`, `CRON_SECRET`).
+
+The redundancy is free because the poller processes whatever is outstanding
+rather than only what is new: a missed hour costs nothing, and a missed day is
+caught up by the next run either way.
+
+Two caveats on GitHub's scheduler: it is best-effort and can run several minutes
+late under load, and it disables scheduled workflows in repositories with no
+activity for 60 days. Neither matters much here — the poller is not
+time-critical, and a repository being edited stays active.
 
 ---
 
