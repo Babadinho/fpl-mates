@@ -84,7 +84,10 @@ export function Preseason({
       <span className="font-mono text-[13px] text-accent">
         {countdown ? `${countdown} to the Gameweek 1 deadline` : 'Counting down to Gameweek 1'}
       </span>
-      <p className="mt-1.5 max-w-[46ch] text-[15px] leading-[1.6] text-dim">{preseason.note}</p>
+      {/* The design specifies 46ch, but our copy is longer than the export's
+          and broke to three cramped lines. 70ch is still inside a comfortable
+          reading measure and settles it at two. */}
+      <p className="mt-1.5 max-w-[70ch] text-[15px] leading-[1.6] text-dim">{preseason.note}</p>
 
       <div className="w-full pt-12">
         <div className="flex items-baseline justify-between gap-6 pb-4">
