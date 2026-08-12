@@ -141,7 +141,7 @@ const schema = z.object({
   FPL_USER_AGENT: z
     .string()
     .optional()
-    .transform((v) => v?.trim() || `fpl-gaffer/${process.env.npm_package_version ?? '0.1.0'} (+https://github.com/Babadinho/fpl-gaffer)`),
+    .transform((v) => v?.trim() || `fpl-mates/${process.env.npm_package_version ?? '0.1.0'} (+https://github.com/Babadinho/fpl-mates)`),
   /** Parallel entry-history requests. Kept low to stay a polite client. */
   POLL_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(4),
   /** bootstrap-static is large and near-static; cache it hard. */
