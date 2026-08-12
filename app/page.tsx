@@ -73,7 +73,7 @@ export default async function Page() {
           <span>Scores are final once FPL applies bonus points · checked {data.status.polled}</span>
           <span>
             {data.whatsappEnabled
-              ? 'Table also posts to WhatsApp when a gameweek settles'
+              ? 'Table also posts to WhatsApp when a gameweek is final'
               : `${data.seasonLabel} · ${data.totalGameweeks} gameweeks`}
           </span>
         </footer>

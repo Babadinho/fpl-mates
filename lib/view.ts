@@ -272,9 +272,12 @@ function buildPreseason(
       ? `Season starts ${longDate(nextWeek.deadlineTime, timezone)}`
       : 'Season not scheduled yet',
     deadline: nextWeek ? nextWeek.deadlineTime.toISOString() : null,
+    // The export's copy predates live scoring and said tables only fill in
+    // "once Gameweek 1 settles". They now update while matches are played.
     note:
-      'Weekly, monthly and season tables fill in automatically once Gameweek 1 ' +
-      'settles. Nobody has to enter anything.',
+      'Scores update here while matches are being played. The weekly, monthly ' +
+      'and season tables fill in on their own once FPL confirms the final ' +
+      'points — nobody has to enter anything.',
     joined: {
       heading: 'Managers in',
       meta: `${ordered.length} joined`,
