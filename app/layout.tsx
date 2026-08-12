@@ -1,12 +1,37 @@
 import type { Metadata } from 'next';
-import { Bebas_Neue, JetBrains_Mono, Manrope } from 'next/font/google';
+import localFont from 'next/font/local';
 import { getConfig } from '@/lib/config';
 import { getLeaderboardView } from '@/lib/view';
 import './globals.css';
 
-const bebas = Bebas_Neue({ weight: '400', subsets: ['latin'], variable: '--font-bebas' });
-const manrope = Manrope({ weight: ['400', '500', '600', '700'], subsets: ['latin'], variable: '--font-manrope' });
-const jetbrains = JetBrains_Mono({ weight: ['400', '500'], subsets: ['latin'], variable: '--font-jetbrains' });
+/*
+ * Self-hosted rather than next/font/google. The Google loader downloads the
+ * files during the build, which failed on Vercel with module-not-found errors
+ * against its own generated CSS. Committing the woff2 files removes the
+ * build-time network dependency entirely — which also helps anyone
+ * self-hosting behind a proxy. All three faces are SIL Open Font License.
+ */
+const bebas = localFont({
+  src: './fonts/bebas-neue.woff2',
+  weight: '400',
+  display: 'swap',
+  variable: '--font-bebas',
+});
+
+const manrope = localFont({
+  src: './fonts/manrope.woff2',
+  // Variable font: one file covers the whole range.
+  weight: '400 800',
+  display: 'swap',
+  variable: '--font-manrope',
+});
+
+const jetbrains = localFont({
+  src: './fonts/jetbrains-mono.woff2',
+  weight: '400 500',
+  display: 'swap',
+  variable: '--font-jetbrains',
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   // Falls back to the league name stored by the poller, so the tab title is
