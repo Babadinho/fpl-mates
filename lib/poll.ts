@@ -148,13 +148,31 @@ export async function runPoll(): Promise<PollResult> {
       tiebreakOrder: cfg.rules.tiebreakOrder,
     };
     const processed: number[] = [];
+    /** Settled long ago but containing no member data — closed out, no winner. */
+    const empty: number[] = [];
 
     for (const week of pending) {
       const rows = rowsForEvent(histories, week.event);
 
-      // Refuse to declare a winner from a partial gameweek. Better to leave it
-      // unprocessed and let the next run finish the job.
       if (rows.length === 0) {
+        // A failed fetch throws and aborts the run, so reaching here means the
+        // histories came back cleanly and genuinely contain nothing for this
+        // gameweek — normal when every member registered with FPL after it.
+        //
+        // Retrying that forever would refetch every history hourly to re-learn
+        // the same thing, so allow a day for late-arriving data and then close
+        // the gameweek out with no winner. Before that, leave it for the next
+        // run in case this is a race against the data appearing.
+        const settledLongAgo =
+          Date.now() - week.deadlineTime.getTime() > 24 * 60 * 60 * 1000;
+
+        if (settledLongAgo) {
+          await db
+            .update(gameweeks)
+            .set({ processedAt: new Date() })
+            .where(eq(gameweeks.event, week.event));
+          empty.push(week.event);
+        }
         continue;
       }
 
@@ -223,11 +241,14 @@ export async function runPoll(): Promise<PollResult> {
       await declareMonthIfComplete(week.monthKey, refs, options);
     }
 
-    return finish({
-      outcome: 'ok',
-      detail: `processed ${processed.length} gameweek(s): ${processed.join(', ')}`,
-      processed,
-    });
+    const detail = [
+      processed.length ? `processed ${processed.join(', ')}` : 'processed nothing',
+      empty.length ? `no data for ${empty.join(', ')}, closed out` : '',
+    ]
+      .filter(Boolean)
+      .join('; ');
+
+    return finish({ outcome: 'ok', detail, processed });
   } catch (error) {
     return finish({
       outcome: 'error',

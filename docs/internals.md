@@ -200,9 +200,13 @@ double-posting.
 through the ordinary path, so there is no separate backfill script to write and
 forget to test.
 
-**A gameweek with no rows is skipped, not processed.** `processed_at` stays
-null and the next run retries. A partial gameweek would declare a winner from
-incomplete data, which is worse than being late.
+**A gameweek with no rows gets a bounded retry, then is closed out.** A failed
+fetch throws and aborts the run, so reaching the empty case means the histories
+came back cleanly and genuinely contain nothing for that gameweek — normal when
+every member registered with FPL after it was played. Retrying forever would
+refetch every history hourly to re-learn the same thing, so the gameweek is left
+pending for 24 hours after its deadline in case of a race, then marked processed
+with no winner declared.
 
 ### Call volume
 
