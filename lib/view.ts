@@ -54,6 +54,7 @@ export interface LeaderboardView {
   seasonLabel: string;
   eyebrow: string;
   showBench: boolean;
+  showSearch: boolean;
   seasonStarted: boolean;
   status: { settled: boolean; label: string; sub: string; polled: string };
   hero: { week: HeroCell; month: HeroCell; season: HeroCell } | null;
@@ -76,6 +77,9 @@ interface SourceData {
   weeks: { event: number; deadlineTime: Date; monthKey: string; dataChecked: boolean; finished: boolean }[];
   lastPolled: Date | null;
 }
+
+/** Rows per page. Also the threshold for `SHOW_SEARCH=auto`. */
+export const PAGE_SIZE = 25;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -374,6 +378,11 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     seasonLabel: cfg.site.seasonLabel ?? seasonLabelFrom(source.weeks[0]?.deadlineTime),
     eyebrow: cfg.site.eyebrow,
     showBench: cfg.site.showBenchColumn,
+    // `auto` keeps the box out of the way of a small league, which is the
+    // common case — a five-manager table has nothing to search.
+    showSearch:
+      cfg.site.searchMode === 'always' ||
+      (cfg.site.searchMode === 'auto' && source.managers.length > PAGE_SIZE),
     seasonStarted,
     status: {
       settled: seasonStarted && !provisional,

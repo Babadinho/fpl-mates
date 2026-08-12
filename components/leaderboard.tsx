@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { LeaderboardView, TableView, UiRow } from '@/lib/view';
+import { PAGE_SIZE, type LeaderboardView, type TableView, type UiRow } from '@/lib/view';
 
 type Tab = 'weekly' | 'monthly' | 'season' | 'history';
 
@@ -14,6 +14,29 @@ const TABS: { key: Tab; label: string }[] = [
 
 /** Grid is shared by the header row and every body row so columns line up. */
 const GRID = 'grid grid-cols-[44px_minmax(0,1fr)_72px_88px] sm:grid-cols-[44px_minmax(0,1fr)_96px_96px_104px]';
+
+function PagerButton({
+  label,
+  enabled,
+  onClick,
+}: {
+  label: string;
+  enabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!enabled}
+      className={`rounded-[4px] border border-line bg-panel px-3.5 py-2 font-mono text-[11px] tracking-[0.06em] uppercase transition-colors ${
+        enabled ? 'cursor-pointer text-ink hover:border-accent hover:text-accent' : 'cursor-default text-dim opacity-45'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
 
 function Pill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
@@ -62,7 +85,22 @@ function Row({ row }: { row: UiRow }) {
   );
 }
 
-function Table({ view }: { view: TableView }) {
+function Table({ view, showSearch }: { view: TableView; showSearch: boolean }) {
+  const [page, setPage] = useState(0);
+  const [query, setQuery] = useState('');
+
+  const q = query.trim().toLowerCase();
+  const rows = q
+    ? view.rows.filter((r) => `${r.name} ${r.team}`.toLowerCase().includes(q))
+    : view.rows;
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  // Clamped rather than trusted: filtering can shrink the list under a stale page.
+  const current = Math.min(page, pageCount - 1);
+  const start = current * PAGE_SIZE;
+  const visible = rows.slice(start, start + PAGE_SIZE);
+  const paged = rows.length > PAGE_SIZE;
+
   return (
     <section className="pt-[26px]">
       {/*
@@ -75,6 +113,22 @@ function Table({ view }: { view: TableView }) {
         <div className="font-mono text-[11px] whitespace-nowrap text-dim">{view.meta}</div>
       </div>
 
+      {showSearch && (
+        <div className="flex items-center gap-4 pb-4">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(0);
+            }}
+            placeholder="Search manager or team"
+            aria-label="Search manager or team"
+            className="w-full max-w-[300px] rounded-[4px] border border-line bg-panel px-3 py-2.5 font-mono text-[12px] text-ink outline-none focus:border-accent"
+          />
+        </div>
+      )}
+
       <div className={`${GRID} border-b border-line px-3.5 pb-2.5`}>
         <div className="label">#</div>
         <div className="label">Manager</div>
@@ -83,12 +137,32 @@ function Table({ view }: { view: TableView }) {
         <div className="label hidden text-right sm:block">{view.headers[2]}</div>
       </div>
 
-      {view.rows.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="border-b border-hair px-3.5 py-8 font-mono text-[12px] text-dim">
-          No scores recorded for this period.
+          {q ? `No manager matches "${query.trim()}".` : 'No scores recorded for this period.'}
         </p>
       ) : (
-        view.rows.map((row) => <Row key={row.entryId} row={row} />)
+        visible.map((row) => <Row key={row.entryId} row={row} />)
+      )}
+
+      {paged && (
+        <div className="flex flex-col items-start gap-3 pt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <span className="font-mono text-[11px] text-dim">
+            {start + 1}–{Math.min(start + PAGE_SIZE, rows.length)} of {rows.length}
+            {q ? ' matching' : ''}
+          </span>
+          <div className="flex items-center gap-2.5">
+            <PagerButton label="Prev" enabled={current > 0} onClick={() => setPage(current - 1)} />
+            <span className="min-w-[88px] text-center font-mono text-[11px] text-dim">
+              Page {current + 1} / {pageCount}
+            </span>
+            <PagerButton
+              label="Next"
+              enabled={current < pageCount - 1}
+              onClick={() => setPage(current + 1)}
+            />
+          </div>
+        </div>
       )}
 
       <p className="px-3.5 pt-[18px] font-mono text-[11px] leading-[1.7] text-dim">{view.note}</p>
@@ -192,9 +266,12 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
         </div>
       )}
 
-      {tab === 'weekly' && weekView && <Table view={weekView} />}
-      {tab === 'monthly' && monthView && <Table view={monthView} />}
-      {tab === 'season' && <Table view={data.season} />}
+      {/* Keyed so switching gameweek, month or tab remounts the table and
+          drops you back on page one — a stale page 3 on a one-page table
+          would otherwise look like an empty leaderboard. */}
+      {tab === 'weekly' && weekView && <Table key={`weekly-${event}`} view={weekView} showSearch={data.showSearch} />}
+      {tab === 'monthly' && monthView && <Table key={`monthly-${monthKey}`} view={monthView} showSearch={data.showSearch} />}
+      {tab === 'season' && <Table key="season" view={data.season} showSearch={data.showSearch} />}
       {tab === 'history' && <History history={data.history} />}
     </>
   );

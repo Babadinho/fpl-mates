@@ -13,17 +13,24 @@ import { z } from 'zod';
 
 /* ---------------------------------------------------------------- helpers */
 
-/** Accepts true/1/yes/on (and the inverse), case-insensitive. */
+/**
+ * Accepts true/1/yes/on (and the inverse), case-insensitive.
+ *
+ * Reports failure through `ctx.addIssue` rather than throwing: an exception
+ * raised inside a transform escapes safeParse entirely, so the self-hoster
+ * would get a raw stack trace that never names the offending variable.
+ */
 const boolEnv = (fallback: boolean) =>
   z
     .string()
     .optional()
-    .transform((v) => {
+    .transform((v, ctx) => {
       if (v === undefined || v.trim() === '') return fallback;
       const s = v.trim().toLowerCase();
       if (['1', 'true', 'yes', 'y', 'on'].includes(s)) return true;
       if (['0', 'false', 'no', 'n', 'off'].includes(s)) return false;
-      throw new Error(`expected a boolean, got "${v}"`);
+      ctx.addIssue({ code: 'custom', message: `must be true or false, got "${v}"` });
+      return z.NEVER;
     });
 
 /**
@@ -131,6 +138,21 @@ const schema = z.object({
   POP_COLOR_DARK: cssColor('oklch(0.78 0.16 100)'),
   /** Show the bench-points column in tables (the prototype's `showBench` prop). */
   SHOW_BENCH_COLUMN: boolEnv(true),
+  /**
+   * Search box above the table. `auto` shows it only once the league is larger
+   * than one page — a five-manager league has nothing to search for.
+   */
+  SHOW_SEARCH: z
+    .string()
+    .optional()
+    .transform((v, ctx) => {
+      const s = (v ?? 'auto').trim().toLowerCase();
+      if (s === '' || s === 'auto') return 'auto' as const;
+      if (['1', 'true', 'yes', 'y', 'on', 'always'].includes(s)) return 'always' as const;
+      if (['0', 'false', 'no', 'n', 'off', 'never'].includes(s)) return 'never' as const;
+      ctx.addIssue({ code: 'custom', message: `must be auto, true or false, got "${v}"` });
+      return z.NEVER;
+    }),
 
   // ---- Poller ------------------------------------------------------------
   FPL_BASE_URL: z
@@ -191,6 +213,7 @@ function load() {
       seasonLabel: env.SEASON_LABEL, // undefined = derive from deadlines
       eyebrow: env.SITE_EYEBROW,
       showBenchColumn: env.SHOW_BENCH_COLUMN,
+      searchMode: env.SHOW_SEARCH,
     },
 
     theme: {
