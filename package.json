@@ -13,7 +13,8 @@
     "db:check": "node --env-file=.env.local scripts/db-check.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "poll": "tsx scripts/poll.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
