@@ -1,0 +1,52 @@
+# Typecheck, tests and a production build on every push.
+#
+# The build runs generateMetadata, which parses the configuration — so it needs
+# FPL_LEAGUE_ID and DATABASE_URL to exist. USE_FIXTURES keeps it away from the
+# database and LIVE_SCORING keeps it off the FPL API, so CI never touches
+# either.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      FPL_LEAGUE_ID: '314'
+      DATABASE_URL: 'postgres://ci:ci@localhost:5432/ci'
+      USE_FIXTURES: 'true'
+      LIVE_SCORING: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Every configured variable is documented
+        run: node scripts/check-env-docs.mjs
+
+      - name: No secrets committed
+        run: node scripts/check-secrets.mjs

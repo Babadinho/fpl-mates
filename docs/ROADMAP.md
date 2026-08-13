@@ -1,85 +1,74 @@
 # Remaining work
 
-Status as of 12 August 2026. The season's first deadline is **Friday 21 August,
+Status as of 14 August 2026. The season's first deadline is **Friday 21 August,
 18:30 BST**, and GW1 settles roughly 24 August.
 
-Built and tested: configuration, database schema, the FPL client, reference-data
-sync, the scoring engine, the full web UI, and the generated icons. See
-[internals.md](internals.md) for how each of those works.
+The app is live at www.fplmates.com, reading the real league, private behind a
+passcode, and polling hourly. See [internals.md](internals.md) for how it works.
 
 ---
 
-## Blocking the season
+## Before the season
 
-### 1. The poller
+### Get the rest of the league to join
 
-Nothing writes a score yet. `gw_scores`, `weekly_winners` and `monthly_winners`
-are migrated but empty, and nothing populates them.
+Two managers so far. Anyone who joins before the GW1 deadline is dated correctly
+and counts from GW1; anyone joining later counts from the gameweek they joined.
+Not a code task, but the only genuinely deadline-bound one.
 
-Needs `lib/poll.ts` and `app/api/poll/route.ts`. The hard parts already exist —
-the client, the sync layer and the scoring functions are all built and tested —
-so this is orchestration plus the `data_checked` gate and the idempotency guard.
+### Verify by hand once GW1 settles
 
-### 2. Deploy to Vercel, early
+The poller has never processed a real gameweek, and the live path has never seen
+a real match. The scoring functions are well covered by unit tests, but the
+integration — history endpoint to stored rows to declared winner — runs for the
+first time on the night of 24 August.
 
-Not for launch. For **gotcha 3**: the FPL CDN intermittently returns 403 to
-datacentre IPs, which is exactly what Vercel is. The client retries and backs
-off, but that behaviour has never been exercised from a real deployment.
+Before telling the group the site exists, cross-check one manager's points
+against the FPL site. One wrong weekly winner is very hard to walk back.
 
-If the API turns out to be unreachable from Vercel, the fix is architectural
-(a proxy, or moving the poller somewhere with a residential-looking IP) and
-needs days, not hours. This is the highest-risk unknown in the project and the
-cheapest to settle. **Deploy before the poller is finished if necessary.**
-
-### 3. Cron configuration
-
-`vercel.json` with an hourly schedule hitting `/api/poll`, and `CRON_SECRET`
-set in the Vercel dashboard so the route cannot be triggered by anyone else.
-
-### 4. Turn off fixtures
-
-Done — `USE_FIXTURES` is off locally and never set in Vercel, so production
-reads the real league. Worth re-checking before the season starts, because the
-failure is silent: the site would simply show "The Sunday League" all year.
-
-### 5. Verify by hand once GW1 settles
-
-Phase 1's real acceptance criterion. Cross-check at least one manager's points
-against the FPL site before telling the group the leaderboard exists. One wrong
-weekly winner destroys trust in the whole thing, and it is very hard to win back.
+If something looks wrong: `poll_runs` records every run and its outcome,
+`pnpm poll` re-runs by hand, and clearing `processed_at` on a gameweek makes the
+next run redo it from scratch.
 
 ---
 
-## Required before open-sourcing
+## Decided against: the WhatsApp bot
 
-None of this affects whether the app works; all of it affects whether anyone
-else can run it. Section 11 of the technical brief is the source.
+The brief planned a bot posting the table into the group chat. Not being built,
+for two reasons.
 
-- **`README.md`** is still the `create-next-app` boilerplate. It needs: what the
-  project does, screenshots of both themes, the five-minute deploy path
-  (fork → Neon → Vercel import → set two variables), and the scoring rules in
-  plain English so a new group can decide whether they agree with them.
-- **`LICENSE`** — MIT.
-- **Disclaimer**, prominently: not affiliated with, endorsed by or connected to
-  the Premier League or Fantasy Premier League; uses an undocumented public API
-  that may change or stop working; run at your own risk.
-- **CI**, with a secret scan so no real value ever lands in the repo.
+**The official API probably cannot do it.** The WhatsApp Business Cloud API is
+built for business-to-consumer 1:1 messaging; posting into an ordinary group
+chat is not something it supports. Worth re-checking if this is ever revisited,
+since Meta's capabilities move.
+
+**Everything that can do it is unofficial.** Baileys, green-api and similar work
+by impersonating the WhatsApp client. That breaches the terms and gets phone
+numbers banned — the brief warns about this explicitly.
+
+What is left officially — 1:1 messages to each member who has opted in, or a
+broadcast Channel — is worse than simply sharing the link, which already
+produces a proper preview card.
+
+The `WHATSAPP_*` variables remain in the configuration and do nothing while
+unset. The footer line about posting to WhatsApp only appears if they are set,
+so it currently never shows.
 
 ---
 
-## Later
+## Worth doing
 
-- **WhatsApp publisher.** Always planned as the second output channel, after the
-  web page (section 6). A thin publisher over the same stored results, gated on
-  the same `data_checked` check and the same idempotency guard.
-- **Season rollover and archive** (gotcha 7). The `current` array resets each
-  season, so the 2026/27 rows must be archived before August 2027. Matters
-  before next season, not this one.
-- **Accent contrast guard.** `--accent-ink` is a fixed near-white against the
-  accent background. A light `ACCENT_COLOR` — `yellow`, say — gives white on
-  yellow. A luminance check that flips the ink between near-white and near-black
-  would fix it. Only affects self-hosters choosing unusual colours.
-- **Rename the working directory.** Still `C:\Projects\fpl-gaffer` on disk while
-  the repo is `fpl-mates`. Cosmetic; best done between sessions.
-- **UI pagination for very large leagues** is implemented, but a sticky table
-  header would help more at 200 rows. Not needed for a normal mini-league.
+- **Season rollover.** `history.current` resets every August, so the 2026/27
+  rows must be archived before the 2027/28 season starts. Breaks silently and a
+  year from now, which is exactly the kind of thing that gets forgotten.
+- **Accent contrast guard.** `--accent-ink` is a fixed near-white on the accent
+  background, so a light `ACCENT_COLOR` gives unreadable text. A luminance check
+  that flips the ink between near-white and near-black would fix it. Only
+  affects self-hosters choosing unusual colours.
+- **A shareable summary.** A button that copies the gameweek result as text to
+  paste into the group — the part of the WhatsApp idea that was actually wanted,
+  without an API, an approval process or a bannable account.
+- **Rename the working directory.** Still `fpl-gaffer` on disk while the repo is
+  `fpl-mates`. Cosmetic; best done between sessions.
+- **Sticky table header** for very large leagues. Pagination is implemented, but
+  at 200 rows a sticky header helps more.

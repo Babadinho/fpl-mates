@@ -16,7 +16,8 @@ name: Poll FPL
 
 on:
   schedule:
-    # UTC. Deliberately not on the hour — see section 11 of the technical brief.
+    # UTC. Deliberately off the hour so self-hosted instances do not all hit
+    # the FPL API at the same moment.
     - cron: '17 * * * *'
   workflow_dispatch:
 
