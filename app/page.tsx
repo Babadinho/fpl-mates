@@ -1,7 +1,7 @@
 import { Gate } from '@/components/gate';
 import { Leaderboard } from '@/components/leaderboard';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { hasAccess } from '@/lib/auth';
+import { hasAccess, rememberedFor } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 import { getLeaderboardView } from '@/lib/view';
 
@@ -15,7 +15,7 @@ export default async function Page() {
   // and the share-preview image still renders for a link posted in the group.
   if (!(await hasAccess())) {
     const { leagueName } = await getLeaderboardView();
-    return <Gate leagueName={leagueName} eyebrow={cfg.site.eyebrow} />;
+    return <Gate leagueName={leagueName} eyebrow={cfg.site.eyebrow} rememberedFor={rememberedFor()} />;
   }
 
   const data = await getLeaderboardView();

@@ -1,7 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { ACCESS_COOKIE, ACCESS_MAX_AGE, passcodeMatches, tokenFor } from '@/lib/auth';
+import { ACCESS_COOKIE, accessMaxAge, passcodeMatches, tokenFor } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 
 export interface GateState {
@@ -33,7 +33,7 @@ export async function submitPasscode(_prev: GateState, formData: FormData): Prom
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: ACCESS_MAX_AGE,
+    maxAge: accessMaxAge(),
   });
 
   return {};

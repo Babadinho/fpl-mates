@@ -157,6 +157,12 @@ const schema = z.object({
    * wants a private table, not a login to administer.
    */
   LEAGUE_PASSCODE: z.string().min(4, 'must be at least 4 characters').optional(),
+  /**
+   * How long a device stays unlocked after entering the passcode. The gate's
+   * own footnote is generated from this, so the promise cannot drift from the
+   * behaviour.
+   */
+  PASSCODE_REMEMBER_DAYS: z.coerce.number().int().min(1).max(400).default(90),
 
   /**
    * Let search engines index the site. Off by default: a mini-league table is
@@ -250,6 +256,7 @@ function load() {
       url: env.SITE_URL,
       allowIndexing: env.ALLOW_INDEXING,
       passcode: env.LEAGUE_PASSCODE,
+      passcodeRememberDays: env.PASSCODE_REMEMBER_DAYS,
       showBenchColumn: env.SHOW_BENCH_COLUMN,
       searchMode: env.SHOW_SEARCH,
     },

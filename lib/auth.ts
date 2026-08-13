@@ -15,8 +15,27 @@ import { getConfig } from './config';
 
 export const ACCESS_COOKIE = 'fpl-access';
 
-/** Remembered on the device for 90 days, as the gate's own footnote promises. */
-export const ACCESS_MAX_AGE = 90 * 24 * 60 * 60;
+/**
+ * Cookie lifetime in seconds, from PASSCODE_REMEMBER_DAYS.
+ *
+ * The gate's footnote is generated from the same value — the number used to be
+ * written twice, once as behaviour and once as prose, which meant changing one
+ * made the page lie.
+ */
+export function accessMaxAge(): number {
+  return getConfig().site.passcodeRememberDays * 24 * 60 * 60;
+}
+
+/** "90 days", "1 day", "6 weeks" — phrasing for the gate's footnote. */
+export function rememberedFor(): string {
+  const days = getConfig().site.passcodeRememberDays;
+  if (days === 1) return '1 day';
+  if (days % 7 === 0 && days < 60) {
+    const weeks = days / 7;
+    return weeks === 1 ? '1 week' : `${weeks} weeks`;
+  }
+  return `${days} days`;
+}
 
 /**
  * Proof of knowing the passcode, safe to store in a cookie.

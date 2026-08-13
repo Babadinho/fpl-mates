@@ -3,7 +3,16 @@
 import { useActionState } from 'react';
 import { submitPasscode, type GateState } from '@/app/actions';
 
-export function Gate({ leagueName, eyebrow }: { leagueName: string; eyebrow: string }) {
+export function Gate({
+  leagueName,
+  eyebrow,
+  rememberedFor,
+}: {
+  leagueName: string;
+  eyebrow: string;
+  /** Generated from PASSCODE_REMEMBER_DAYS, so the promise matches the cookie. */
+  rememberedFor: string;
+}) {
   const [state, action, pending] = useActionState<GateState, FormData>(submitPasscode, {});
 
   return (
@@ -48,7 +57,8 @@ export function Gate({ leagueName, eyebrow }: { leagueName: string; eyebrow: str
         </div>
 
         <span className="font-mono text-[11px] leading-[1.7] text-dim">
-          One passcode for the whole league. It is remembered on this device for 90 days.
+          One passcode for the whole league. It is remembered on this device for{' '}
+          {rememberedFor}.
         </span>
       </form>
     </div>
