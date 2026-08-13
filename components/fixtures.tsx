@@ -73,7 +73,7 @@ export function Fixtures({
             <div className={`font-mono text-[14px] ${fx.started ? 'text-ink' : 'text-dim'}`}>
               {fx.score}
             </div>
-            <span className="font-mono text-[12px] tracking-[0.06em] text-dim">{fx.away}</span>
+            <span className="font-mono text-[12px] tracking-[0.06em] text-ink">{fx.away}</span>
           </div>
         ))}
       </div>

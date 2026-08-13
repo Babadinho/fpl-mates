@@ -309,11 +309,11 @@
           <sc-for list="{{ fixtures.list }}" as="fx" hint-placeholder-count="10">
             <div style="background:var(--bg); padding:18px 14px; display:flex; flex-direction:column; gap:8px;">
               <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
-                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink);">{{ fx.home }}</span>
+                <span style="{{ fx.homeStyle }}">{{ fx.home }}</span>
                 <span style="{{ fx.clockStyle }}">{{ fx.clock }}</span>
               </div>
               <div style="{{ fx.scoreStyle }}">{{ fx.score }}</div>
-              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.06em; color:var(--dim);">{{ fx.away }}</span>
+              <span style="{{ fx.awayStyle }}">{{ fx.away }}</span>
             </div>
           </sc-for>
         </div>
@@ -332,7 +332,7 @@
 </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;leagueName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;The Sunday League&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;passcodeGate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;preseason&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;playedGw&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:12,&quot;min&quot;:1,&quot;max&quot;:38,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;liveMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;leagueSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:240,&quot;min&quot;:8,&quot;max&quot;:400,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.42 0.17 305)&quot;,&quot;options&quot;:[&quot;oklch(0.42 0.17 305)&quot;,&quot;oklch(0.45 0.16 255)&quot;,&quot;oklch(0.45 0.17 25)&quot;,&quot;oklch(0.35 0.03 300)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;pop&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.72 0.19 145)&quot;,&quot;options&quot;:[&quot;oklch(0.72 0.19 145)&quot;,&quot;oklch(0.78 0.17 190)&quot;,&quot;oklch(0.78 0.16 100)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBench&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;leagueName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;The Sunday League&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;fixtureEmphasis&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Ahead&quot;,&quot;Home side&quot;,&quot;Neither&quot;],&quot;default&quot;:&quot;Ahead&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Fixtures&quot;},&quot;passcodeGate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;preseason&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;playedGw&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:12,&quot;min&quot;:1,&quot;max&quot;:38,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;liveMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;leagueSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:240,&quot;min&quot;:8,&quot;max&quot;:400,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.42 0.17 305)&quot;,&quot;options&quot;:[&quot;oklch(0.42 0.17 305)&quot;,&quot;oklch(0.45 0.16 255)&quot;,&quot;oklch(0.45 0.17 25)&quot;,&quot;oklch(0.35 0.03 300)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;pop&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.72 0.19 145)&quot;,&quot;options&quot;:[&quot;oklch(0.72 0.19 145)&quot;,&quot;oklch(0.78 0.17 190)&quot;,&quot;oklch(0.78 0.16 100)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBench&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
 class Component extends DCLogic {
   state = { pass: '', passErr: '', unlocked: false, refreshing: false, refreshedAt: 0, tab: 'weekly', gw: 0, month: '', dark: false, query: '', page: 0, now: Date.now(), fixOpen: true };
   PAGE_SIZE = 25;
@@ -474,10 +474,28 @@ class Component extends DCLogic {
     };
   }
 
+  codeStyle(t, ahead, away) {
+    const mode = this.props.fixtureEmphasis ?? 'Ahead';
+    const base = "font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.06em;";
+    if (mode === 'Home side') return base + ' color:' + (away ? t.dim : t.ink) + ';';
+    if (mode === 'Ahead') return base + ' color:' + (ahead ? t.ink : t.dim) + ';';
+    return base + ' color:' + t.ink + ';' + (away ? ' padding-left:14px;' : '');
+  }
+
+  polledMinutes() {
+    const ms = this.state.refreshedAt ? this.state.now - this.state.refreshedAt : 18 * 60000;
+    return Math.floor(ms / 60000);
+  }
+
+  polledLabel() {
+    if (this.state.refreshing) return 'refreshing now';
+    const m = this.polledMinutes();
+    return m < 1 ? 'moments ago' : m + (m === 1 ? ' minute ago' : ' minutes ago');
+  }
+
   refreshedLabel() {
     if (this.state.refreshing) return 'Refreshing';
-    const ms = this.state.refreshedAt ? this.state.now - this.state.refreshedAt : 18 * 60000;
-    const m = Math.floor(ms / 60000);
+    const m = this.polledMinutes();
     return m < 1 ? 'Updated just now' : 'Updated ' + m + (m === 1 ? ' min ago' : ' mins ago');
   }
 
@@ -626,6 +644,7 @@ class Component extends DCLogic {
           note: 'Kickoff times are provisional until the Premier League confirms TV selections.',
           list: this.FIXTURES.map(([h, a]) => ({
             home: h, away: a, score: 'Sat 15:00', clock: '',
+            homeStyle: this.codeStyle(t, false), awayStyle: this.codeStyle(t, false, true),
             clockStyle: '', scoreStyle: `font-family:'JetBrains Mono',monospace; font-size:14px; color:${t.dim};`
           }))
         }
@@ -756,6 +775,8 @@ class Component extends DCLogic {
         list: this.FIXTURES.map(([h, a, min, hs, as]) => ({
           home: h, away: a,
           score: min > 0 ? hs + ' \u2013 ' + as : 'Sat 15:00',
+          homeStyle: this.codeStyle(t, min > 0 && hs > as),
+          awayStyle: this.codeStyle(t, min > 0 && as > hs, true),
           clock: min >= 90 ? 'FT' : min > 0 ? min + "'" : '',
           clockStyle: `font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:${min > 0 && min < 90 ? amber : t.dim};`,
           scoreStyle: `font-family:'JetBrains Mono',monospace; font-size:14px; color:${min > 0 ? t.ink : t.dim};`
@@ -764,7 +785,7 @@ class Component extends DCLogic {
       status: {
         label: this.LIVE ? 'GW ' + this.LIVE_GW + ' LIVE \u00b7 PROVISIONAL' : 'GW ' + played + ' SETTLED',
         sub: seasonDone ? 'season complete \u00b7 2027/28 opens in July' : this.LIVE ? 'GW ' + played + ' settled \u00b7 bonus not yet applied to GW ' + this.LIVE_GW : 'bonus applied \u00b7 GW ' + (played + 1) + ' deadline ' + this.shortDeadline(),
-        polled: '18 minutes ago'
+        polled: this.polledLabel()
       },
       hero: {
         week: { label: 'Gameweek ' + played + ' winner', name: this.name(wk.id), value: wk.net + ' pts', sub: wk.cost ? 'after a −' + wk.cost + ' hit' : 'no hits taken' },
