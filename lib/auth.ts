@@ -55,7 +55,7 @@ export function passcodeMatches(candidate: string): boolean {
 
   // Hash both sides first: timingSafeEqual throws on length mismatch, which
   // would otherwise reveal the length of the real passcode.
-  const a = createHash('sha256').update(candidate).digest();
+  const a = createHash('sha256').update(candidate.trim()).digest();
   const b = createHash('sha256').update(passcode).digest();
   return timingSafeEqual(a, b);
 }

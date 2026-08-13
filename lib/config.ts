@@ -171,7 +171,13 @@ const schema = z.object({
    * Not accounts — the brief puts those out of scope, and a group of friends
    * wants a private table, not a login to administer.
    */
-  LEAGUE_PASSCODE: z.string().min(4, 'must be at least 4 characters').optional(),
+  // Trimmed: a value set with `echo x | vercel env add` arrives with a
+  // trailing newline, which silently rejects every correct passcode.
+  LEAGUE_PASSCODE: z
+    .string()
+    .transform((v) => v.trim())
+    .pipe(z.string().min(4, 'must be at least 4 characters'))
+    .optional(),
   /**
    * How long a device stays unlocked after entering the passcode. The gate's
    * own footnote is generated from this, so the promise cannot drift from the
