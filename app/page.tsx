@@ -1,11 +1,23 @@
+import { Gate } from '@/components/gate';
 import { Leaderboard } from '@/components/leaderboard';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { hasAccess } from '@/lib/auth';
+import { getConfig } from '@/lib/config';
 import { getLeaderboardView } from '@/lib/view';
 
 // Read fresh on each request; the poller writes on its own cadence.
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  const cfg = getConfig();
+
+  // Gated at the page, not in middleware, so /api/poll stays reachable by cron
+  // and the share-preview image still renders for a link posted in the group.
+  if (!(await hasAccess())) {
+    const { leagueName } = await getLeaderboardView();
+    return <Gate leagueName={leagueName} eyebrow={cfg.site.eyebrow} />;
+  }
+
   const data = await getLeaderboardView();
 
   return (

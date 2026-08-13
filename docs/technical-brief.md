@@ -465,3 +465,26 @@ The hero strip and the gameweek pills are not rendered. The status pill reads `P
 The classic-league standings response includes a `new_entries` block whose results carry `joined_time` alongside `entry`, `entry_name` and the player name. That timestamp is only present while an entry is still classed as new, so the poller must capture it on first sight and persist it to the `joined` column; it cannot be recovered later. For entries already present before this tool was pointed at the league, leave `joined` null and display a dash rather than guessing.
 
 The Fixtures tab still works in preseason, showing Gameweek 1 fixtures with kickoff times and no scores.
+
+---
+
+## 14. Optional passcode gate
+
+Some groups will want the site private. Off by default: absent `SITE_PASSCODE`, the site is public and nothing changes.
+
+**Be clear about what this buys.** The underlying standings are already fetchable by anyone who knows the league ID, so the gate is privacy by obscurity, not security. It earns its place once the site carries anything the official FPL site does not: nicknames, banter, a wall of shame.
+
+### Behaviour
+
+- One shared passcode for the whole league, from `SITE_PASSCODE`. No accounts, no per-person passwords. Rotating it is an env-var change and a redeploy.
+- Middleware checks a signed httpOnly cookie. No cookie, redirect to the gate. Cookie lasts 90 days so nobody re-enters it weekly.
+- Compare against a hash, never the plaintext env value in client-reachable code. Rate-limit attempts per IP.
+- **Gate `/api/*` as well as pages.** The common mistake is a gated UI in front of open JSON.
+- When a passcode is set, send `noindex` and suppress OG preview data.
+- The WhatsApp publisher is unaffected; it pushes out, it does not read through the gate.
+
+### Gate screen
+
+Single centred column, 360px wide, same type and theme tokens as the main page. League name in display type, one line of copy ("This league table is private. Enter the passcode your league shares."), a monospace passcode field with wide letter-spacing, a full-width accent Enter button, and a footnote stating the passcode is remembered on the device for 90 days. A wrong code turns the field border red and shows a single line of error text below it; the copy never says whether the passcode exists.
+
+Enter key submits. No "forgot passcode" flow: the answer is to ask whoever runs the league.

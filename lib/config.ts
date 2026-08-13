@@ -151,6 +151,18 @@ const schema = z.object({
   POP_COLOR: cssColor('oklch(0.72 0.19 145)'),
   ACCENT_COLOR_DARK: cssColor('oklch(0.72 0.19 145)'),
   POP_COLOR_DARK: cssColor('oklch(0.78 0.16 100)'),
+  /**
+   * Shared passcode for the whole league. Unset means the page is public.
+   * Not accounts — the brief puts those out of scope, and a group of friends
+   * wants a private table, not a login to administer.
+   */
+  LEAGUE_PASSCODE: z.string().min(4, 'must be at least 4 characters').optional(),
+
+  /**
+   * Let search engines index the site. Off by default: a mini-league table is
+   * a private thing among friends, not something to be found by strangers.
+   */
+  ALLOW_INDEXING: boolEnv(false),
   /** Show the bench-points column in tables (the prototype's `showBench` prop). */
   SHOW_BENCH_COLUMN: boolEnv(true),
   /**
@@ -236,6 +248,8 @@ function load() {
       seasonLabel: env.SEASON_LABEL, // undefined = derive from deadlines
       eyebrow: env.SITE_EYEBROW,
       url: env.SITE_URL,
+      allowIndexing: env.ALLOW_INDEXING,
+      passcode: env.LEAGUE_PASSCODE,
       showBenchColumn: env.SHOW_BENCH_COLUMN,
       searchMode: env.SHOW_SEARCH,
     },

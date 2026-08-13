@@ -18,6 +18,7 @@
   --accent-ink: oklch(0.98 0.01 300);
   /* Third status colour, for anything provisional or in play. */
   --amber: oklch(0.62 0.14 70);
+  --danger: oklch(0.53 0.19 25);
   --accent: var(--accent-light);
   --pop: var(--pop-light);
 }
@@ -32,6 +33,7 @@
   --hover: oklch(0.235 0.035 300);
   --accent-ink: oklch(0.18 0.03 300);
   --amber: oklch(0.8 0.15 80);
+  --danger: oklch(0.72 0.17 25);
   --accent: var(--accent-dark);
   --pop: var(--pop-dark);
 }
@@ -49,6 +51,7 @@
   --color-accent-ink: var(--accent-ink);
   --color-pop: var(--pop);
   --color-amber: var(--amber);
+  --color-danger: var(--danger);
 
   --font-display: var(--font-bebas), Impact, sans-serif;
   --font-sans: var(--font-manrope), 'Helvetica Neue', Helvetica, sans-serif;

@@ -49,6 +49,30 @@
 </style>
 </helmet>
 <div style="{{ theme }}">
+<sc-if value="{{ gated }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100vh; background:var(--bg); color:var(--ink); font-family:Manrope,'Helvetica Neue',Helvetica,sans-serif; display:flex; align-items:center; justify-content:center; padding:32px;">
+    <div style="width:100%; max-width:360px; display:flex; flex-direction:column; gap:26px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="width:22px; height:22px; border-radius:4px; background:var(--accent); display:block;"></span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--dim);">Fantasy Premier League</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <h1 style="margin:0; font-family:'Bebas Neue',Impact,sans-serif; font-size:52px; font-weight:400; letter-spacing:0.005em; line-height:0.88; text-transform:uppercase;">{{ leagueName }}</h1>
+        <p style="margin:0; font-size:15px; line-height:1.6; color:var(--dim); text-wrap:pretty;">{{ gate.note }}</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <input type="password" placeholder="Passcode" value="{{ gate.value }}" onChange="{{ gate.onChange }}" onKeyDown="{{ gate.onKeyDown }}" style="{{ gate.inputStyle }}" />
+        <sc-if value="{{ gate.error }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:{{ gate.errorColor }};">{{ gate.error }}</span>
+        </sc-if>
+        <button type="button" onClick="{{ gate.submit }}" style="{{ gate.buttonStyle }}">Enter</button>
+      </div>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.7; color:var(--dim);">{{ gate.footnote }}</span>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ ungated }}" hint-placeholder-val="{{ true }}">
 <div data-r="page" style="min-height:100vh; background:var(--bg); color:var(--ink); font-family:Manrope,'Helvetica Neue',Helvetica,sans-serif; padding:0 32px 96px; transition:background 200ms ease, color 200ms ease;">
 
   <div style="max-width:1060px; margin:0 auto;">
@@ -290,12 +314,13 @@
 
   </div>
 </div>
+</sc-if>
 </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;leagueName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;The Sunday League&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;preseason&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;playedGw&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:12,&quot;min&quot;:1,&quot;max&quot;:38,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;liveMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;leagueSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:240,&quot;min&quot;:8,&quot;max&quot;:400,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.42 0.17 305)&quot;,&quot;options&quot;:[&quot;oklch(0.42 0.17 305)&quot;,&quot;oklch(0.45 0.16 255)&quot;,&quot;oklch(0.45 0.17 25)&quot;,&quot;oklch(0.35 0.03 300)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;pop&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.72 0.19 145)&quot;,&quot;options&quot;:[&quot;oklch(0.72 0.19 145)&quot;,&quot;oklch(0.78 0.17 190)&quot;,&quot;oklch(0.78 0.16 100)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBench&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;leagueName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;The Sunday League&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;passcodeGate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;preseason&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;playedGw&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:12,&quot;min&quot;:1,&quot;max&quot;:38,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;liveMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;leagueSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:240,&quot;min&quot;:8,&quot;max&quot;:400,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.42 0.17 305)&quot;,&quot;options&quot;:[&quot;oklch(0.42 0.17 305)&quot;,&quot;oklch(0.45 0.16 255)&quot;,&quot;oklch(0.45 0.17 25)&quot;,&quot;oklch(0.35 0.03 300)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;pop&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.72 0.19 145)&quot;,&quot;options&quot;:[&quot;oklch(0.72 0.19 145)&quot;,&quot;oklch(0.78 0.17 190)&quot;,&quot;oklch(0.78 0.16 100)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBench&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
 class Component extends DCLogic {
-  state = { tab: 'weekly', gw: 0, month: '', dark: false, query: '', page: 0, now: Date.now(), fixOpen: true };
+  state = { pass: '', passErr: '', unlocked: false, tab: 'weekly', gw: 0, month: '', dark: false, query: '', page: 0, now: Date.now(), fixOpen: true };
   PAGE_SIZE = 25;
 
   MONTHS = [
@@ -520,10 +545,33 @@ class Component extends DCLogic {
     }));
 
     const amber = dark ? 'oklch(0.8 0.15 80)' : 'oklch(0.62 0.14 70)';
+    const red = dark ? 'oklch(0.72 0.17 25)' : 'oklch(0.53 0.19 25)';
+
+    if ((this.props.passcodeGate ?? false) && !this.state.unlocked) {
+      const submit = () => this.setState(s => s.pass.trim().length >= 4
+        ? { unlocked: true, passErr: '' }
+        : { passErr: 'That passcode is not right. Ask whoever runs the league.' });
+      return {
+        theme, gated: true, ungated: false,
+        leagueName: this.props.leagueName ?? 'The Sunday League',
+        gate: {
+          note: 'This league table is private. Enter the passcode your league shares.',
+          value: this.state.pass,
+          onChange: e => this.setState({ pass: e.target.value, passErr: '' }),
+          onKeyDown: e => { if (e.key === 'Enter') submit(); },
+          submit,
+          error: this.state.passErr || false,
+          errorColor: red,
+          inputStyle: `appearance:none; width:100%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:14px; letter-spacing:0.2em; padding:14px 16px; border-radius:4px; border:1px solid ${this.state.passErr ? red : t.line}; background:${t.panel}; color:${t.ink}; outline:none;`,
+          buttonStyle: `appearance:none; cursor:pointer; width:100%; font-family:Manrope,Helvetica,sans-serif; font-size:13px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; padding:14px 16px; border-radius:4px; border:1px solid ${t.accent}; background:${t.accent}; color:${t.accentInk};`,
+          footnote: 'One passcode for the whole league. It is remembered on this device for 90 days.'
+        }
+      };
+    }
 
     if (this.PRESEASON) {
       return {
-        theme, darkIcon: dark ? '\u2600' : '\u263e',
+        theme, gated: false, ungated: true, darkIcon: dark ? '\u2600' : '\u263e',
         toggleDark: () => this.setState(s => {
           try { localStorage.setItem('fpl-dark', s.dark ? '0' : '1'); } catch (e) {}
           return { dark: !s.dark };
@@ -654,7 +702,7 @@ class Component extends DCLogic {
     });
 
     return {
-      theme,
+      theme, gated: false, ungated: true,
       darkIcon: dark ? '☀' : '☾',
       toggleDark: () => this.setState(s => {
         try { localStorage.setItem('fpl-dark', s.dark ? '0' : '1'); } catch (e) {}

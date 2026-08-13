@@ -49,6 +49,12 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(cfg.site.url),
     title,
     description,
+    // Off unless ALLOW_INDEXING is set. The noindex tag is what actually keeps
+    // the page out of search results — see app/robots.ts for why robots.txt
+    // deliberately still allows crawling.
+    robots: cfg.site.allowIndexing
+      ? undefined
+      : { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
     openGraph: { title, description, type: 'website', siteName: leagueName },
     twitter: { card: 'summary_large_image', title, description },
     // Generated from ACCENT_COLOR / POP_COLOR so a self-hosted instance gets an
