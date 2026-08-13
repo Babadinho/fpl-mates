@@ -1,7 +1,7 @@
 /**
  * Deterministic mock league.
  *
- * Two jobs (section 11): it lets the design be finished before the season
+ * Two jobs: it lets the design be finished before the season
  * starts, and it lets the app be run and the tests pass without touching the
  * live API. Enabled with USE_FIXTURES=1.
  *

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Fixtures } from './fixtures';
+import { Refresh } from './refresh';
 import { Preseason } from './preseason';
 import { PAGE_SIZE, type LeaderboardView, type TableView, type UiRow } from '@/lib/view';
 
@@ -96,13 +97,22 @@ function Row({ row }: { row: UiRow }) {
 
       <div className="text-right font-mono text-[16px]">{row.c0}</div>
       <div className="text-right font-mono text-[13px] text-dim">{row.c1}</div>
-      {/* Below 640px the table drops to two numeric columns (section 10). */}
+      {/* Below 640px the table drops to two numeric columns. */}
       <div className="hidden text-right font-mono text-[13px] text-dim sm:block">{row.c2}</div>
     </div>
   );
 }
 
-function Table({ view, showSearch }: { view: TableView; showSearch: boolean }) {
+function Table({
+  view,
+  showSearch,
+  refresh,
+}: {
+  view: TableView;
+  showSearch: boolean;
+  /** Present only on the gameweek in play. */
+  refresh?: { fetchedAt: string; intervalSeconds?: number };
+}) {
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
 
@@ -127,7 +137,16 @@ function Table({ view, showSearch }: { view: TableView; showSearch: boolean }) {
       */}
       <div className="flex flex-col items-start gap-2.5 pb-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
         <h2 className="display m-0 text-[32px] tracking-[0.02em]">{view.title}</h2>
-        <div className="font-mono text-[11px] whitespace-nowrap text-dim">{view.meta}</div>
+        <div className="flex items-center gap-3">
+          <div
+            className={`font-mono text-[11px] whitespace-nowrap ${
+              view.provisional ? 'text-amber' : 'text-dim'
+            }`}
+          >
+            {view.meta}
+          </div>
+          {refresh && <Refresh fetchedAt={refresh.fetchedAt} intervalSeconds={refresh.intervalSeconds} />}
+        </div>
       </div>
 
       {showSearch && (
@@ -308,11 +327,28 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
       {/* Keyed so switching gameweek, month or tab remounts the table and
           drops you back on page one — a stale page 3 on a one-page table
           would otherwise look like an empty leaderboard. */}
-      {!data.preseason && tab === 'weekly' && weekView && <Table key={`weekly-${event}`} view={weekView} showSearch={data.showSearch} />}
+      {!data.preseason && tab === 'weekly' && weekView && (
+        <Table
+          key={`weekly-${event}`}
+          view={weekView}
+          showSearch={data.showSearch}
+          refresh={
+            liveEvent !== null && event === liveEvent && data.live
+              ? {
+                  fetchedAt: data.live.fetchedAt,
+                  intervalSeconds:
+                    data.live.inPlay && data.refreshSeconds ? data.refreshSeconds : undefined,
+                }
+              : undefined
+          }
+        />
+      )}
       {!data.preseason && tab === 'monthly' && monthView && <Table key={`monthly-${monthKey}`} view={monthView} showSearch={data.showSearch} />}
       {!data.preseason && tab === 'season' && <Table key="season" view={data.season} showSearch={data.showSearch} />}
       {!data.preseason && tab === 'history' && <History history={data.history} />}
-      {tab === 'fixtures' && data.live && <Fixtures live={data.live} />}
+      {tab === 'fixtures' && data.live && (
+        <Fixtures live={data.live} refreshSeconds={data.refreshSeconds} />
+      )}
     </>
   );
 }

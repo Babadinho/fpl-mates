@@ -156,7 +156,7 @@ describe('declareWinner', () => {
   });
 });
 
-describe('mid-season joiners (gotcha 5)', () => {
+describe('mid-season joiners', () => {
   const late: ManagerRef[] = [
     ...managers.slice(0, 2),
     { entryId: 3, playerName: 'Cara', entryName: 'Gamma FC', joinedGw: 3 },

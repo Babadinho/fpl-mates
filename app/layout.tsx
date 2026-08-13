@@ -58,7 +58,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: { title, description, type: 'website', siteName: leagueName },
     twitter: { card: 'summary_large_image', title, description },
     // Generated from ACCENT_COLOR / POP_COLOR so a self-hosted instance gets an
-    // icon in its own theme (section 11). The SVG carries both schemes itself;
+    // icon in its own theme. The SVG carries both schemes itself;
     // apple-icon.tsx rasterises the same mark, since iOS will not take an SVG.
     icons: {
       icon: [{ url: '/api/icon.svg', type: 'image/svg+xml' }],

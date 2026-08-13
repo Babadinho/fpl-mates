@@ -1,7 +1,7 @@
 /**
  * Zod schemas for every FPL API response we consume.
  *
- * These directly implement gotcha 8: field names have changed between seasons
+ * Field names have changed between seasons
  * before, and a silently-defaulted zero would corrupt a monthly table. Every
  * field we actually use is required here, so drift fails loudly at the
  * boundary instead of quietly halfway through a scoring query.
@@ -16,7 +16,7 @@ import { z } from 'zod';
 export const eventSchema = z.object({
   id: z.number().int().min(1).max(38),
   name: z.string(),
-  /** ISO timestamp. Assigns the gameweek to a calendar month (section 4). */
+  /** ISO timestamp. Assigns the gameweek to a calendar month. */
   deadline_time: z.string(),
   finished: z.boolean(),
   /** Bonus applied and stats final. The flag to gate on — NOT `finished`. */
@@ -56,7 +56,7 @@ export const standingsResultSchema = z.object({
  *
  * Note the different shape: the name arrives split, and `joined_time` exists
  * here and nowhere else. It disappears once the manager moves into
- * `standings.results`, so capture it on first sight (gotcha 5).
+ * `standings.results`, so capture it on first sight.
  */
 export const newEntryResultSchema = z.object({
   entry: z.number().int().positive(),
@@ -93,7 +93,7 @@ export const leagueStandingsSchema = z.object({
 
 export const historyEntrySchema = z.object({
   event: z.number().int().min(1).max(38),
-  /** GROSS points, before transfer hits. The most-mishandled field (gotcha 4). */
+  /** GROSS points, before transfer hits. The most-mishandled field. */
   points: z.number().int(),
   total_points: z.number().int(),
   /** Hits taken, as a POSITIVE number. Subtract it. */
@@ -109,7 +109,7 @@ export const chipPlaySchema = z.object({
 });
 
 export const entryHistorySchema = z.object({
-  /** Resets every season (gotcha 7). Empty before GW1 is scored. */
+  /** Resets every season, so archive before August. Empty before GW1. */
   current: z.array(historyEntrySchema),
   chips: z.array(chipPlaySchema),
 });

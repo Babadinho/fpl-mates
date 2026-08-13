@@ -1,7 +1,7 @@
 /**
  * Table building and winner declaration.
  *
- * Pure functions, no I/O (section 5b) — every rule in section 4 is testable
+ * Pure functions, no I/O — every scoring rule is testable
  * with a fixture array and no network. The same functions serve mock data now
  * and real rows from Postgres once GW1 settles.
  */
@@ -57,13 +57,14 @@ export interface RankedRow extends Aggregate {
  * Named explicitly rather than just `points`, because FPL's own `points` field
  * means the opposite — it is gross, before hits. A manager scoring 80 with a
  * -8 finishes below one scoring 74 clean; using gross is the single most
- * common bug in homemade FPL leaderboards (gotcha 4).
+ * common bug in homemade FPL leaderboards.
  */
 export function pointsAfterCost(row: Pick<ScoreRow, 'grossPoints' | 'transferCost'>): number {
   return row.grossPoints - row.transferCost;
 }
 
-/** Is this gameweek eligible for this manager? (gotcha 5) */
+/** Is this gameweek eligible for this manager? Mid-season joiners score
+ *  only from the gameweek they joined, unless COUNT_PREJOIN_GWS is on. */
 function counts(row: ScoreRow, manager: ManagerRef, countPrejoin: boolean): boolean {
   return countPrejoin || row.event >= manager.joinedGw;
 }
@@ -140,7 +141,7 @@ function applyRule(rule: TiebreakKey, a: Aggregate, b: Aggregate): number {
   }
 }
 
-/** Builds a comparator from the configured rule order (section 4). */
+/** Builds a comparator from the configured rule order. */
 export function comparator(order: readonly TiebreakKey[]) {
   return (a: Aggregate, b: Aggregate): number => {
     for (const rule of order) {

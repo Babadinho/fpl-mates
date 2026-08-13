@@ -6,7 +6,7 @@ import { getConfig } from '@/lib/config';
  * The app icon, generated from the configured theme.
  *
  * It is a route rather than a static file because ACCENT_COLOR and POP_COLOR
- * are environment variables (section 11) — a group self-hosting with their own
+ * are environment variables — a group self-hosting with their own
  * colours gets a matching icon without editing any asset.
  *
  * Pure geometry, no text: a letterform would need a webfont, and a standalone

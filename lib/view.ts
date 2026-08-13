@@ -5,10 +5,10 @@
  * the same scoring functions over either. The client component receives plain
  * data and only decides which tab to show — no fetching, no scoring.
  */
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq, inArray } from 'drizzle-orm';
 import { getConfig, TIEBREAK_LABELS } from './config';
 import { getDb } from './db';
-import { gameweeks, league, managers as managersTable, gwScores } from './db/schema';
+import { gameweeks, league, managers as managersTable, gwScores, pollRuns } from './db/schema';
 import { mockLeague } from './fixtures/mock';
 import { getLiveState, type LiveFixture } from './live';
 import { groupByMonth, monthLabel, monthShortLabel } from './scoring/month';
@@ -38,6 +38,8 @@ export interface UiRow {
 export interface TableView {
   title: string;
   meta: string;
+  /** True when the figures include a gameweek that is still being played. */
+  provisional?: boolean;
   headers: [string, string, string];
   note: string;
   rows: UiRow[];
@@ -56,6 +58,8 @@ export interface LeaderboardView {
   eyebrow: string;
   showBench: boolean;
   showSearch: boolean;
+  /** Auto-refresh interval in seconds, or null when it is off (the default). */
+  refreshSeconds: number | null;
   seasonStarted: boolean;
   status: { settled: boolean; live: boolean; label: string; sub: string; polled: string };
   hero: { week: HeroCell; month: HeroCell; season: HeroCell } | null;
@@ -68,6 +72,8 @@ export interface LeaderboardView {
   };
   live: {
     event: number;
+    /** ISO instant the FPL data was fetched — what "Updated N mins ago" counts from. */
+    fetchedAt: string;
     /** ISO deadline of the gameweek being counted down to. */
     nextDeadline: string | null;
     fixtures: LiveFixture[];
@@ -142,14 +148,18 @@ async function fromDatabase(): Promise<SourceData> {
   const cfg = getConfig();
   const db = getDb();
 
-  const [weeks, roster, scores, leagueRows] = await Promise.all([
+  const [weeks, roster, scores, leagueRows, lastRun] = await Promise.all([
     db.select().from(gameweeks).orderBy(asc(gameweeks.event)),
     db.select().from(managersTable).where(eq(managersTable.active, true)),
     db.select().from(gwScores),
     db.select().from(league).where(eq(league.id, cfg.leagueId)).limit(1),
+    db
+      .select({ finishedAt: pollRuns.finishedAt })
+      .from(pollRuns)
+      .where(inArray(pollRuns.outcome, ['ok', 'skipped']))
+      .orderBy(desc(pollRuns.finishedAt))
+      .limit(1),
   ]);
-
-  const processed = weeks.map((w) => w.processedAt).filter((d): d is Date => d !== null);
 
   return {
     leagueName: leagueRows[0]?.name ?? 'FPL Gaffer',
@@ -181,7 +191,7 @@ async function fromDatabase(): Promise<SourceData> {
       dataChecked: w.dataChecked,
       finished: w.finished,
     })),
-    lastPolled: processed.length ? new Date(Math.max(...processed.map((d) => d.getTime()))) : null,
+    lastPolled: lastRun[0]?.finishedAt ?? null,
   };
 }
 
@@ -203,7 +213,7 @@ function toUiRows(rows: RankedRow[], cells: (row: RankedRow) => [string, string,
 }
 
 function relativeTime(date: Date | null): string {
-  if (!date) return 'never';
+  if (!date) return 'not yet';
   const minutes = Math.round((Date.now() - date.getTime()) / 60_000);
   if (minutes < 1) return 'just now';
   if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
@@ -303,6 +313,23 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     tiebreakOrder: cfg.rules.tiebreakOrder,
   };
 
+  // Fetched before the tables are built: FPL's own league table counts points
+  // from the gameweek in play, so ours does too. Winners still wait for
+  // confirmation — only the displayed totals move.
+  let liveState: Awaited<ReturnType<typeof getLiveState>> = null;
+  if (cfg.live.enabled && !cfg.useFixtures) {
+    const upcoming = source.weeks.find((w) => !w.dataChecked);
+    if (upcoming) {
+      try {
+        liveState = await getLiveState(upcoming.event);
+      } catch {
+        liveState = null;
+      }
+    }
+  }
+  const liveRows = liveState?.rows ?? [];
+  const liveEventInPlay = liveRows.length > 0 ? liveState!.event : null;
+
   const settledWeeks = source.weeks.filter((w) => w.dataChecked).map((w) => w.event);
   const lastSettled = settledWeeks.at(-1) ?? null;
   const seasonStarted = lastSettled !== null;
@@ -348,16 +375,17 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
 
   /* ---- monthly */
   const months = groupByMonth(
-    source.weeks.filter((w) => w.dataChecked),
+    source.weeks.filter((w) => w.dataChecked || w.event === liveEventInPlay),
     tz,
   );
   const allMonths = groupByMonth(source.weeks, tz);
 
   const monthly = [...months.entries()].map(([key, weeksInMonth]) => {
     const events = weeksInMonth.map((w) => w.event);
-    const rows = monthlyTable(source.scores, source.managers, events, options);
+    const rows = monthlyTable([...source.scores, ...liveRows], source.managers, events, options);
     const scheduled = allMonths.get(key)?.length ?? events.length;
     const complete = events.length === scheduled;
+    const hasLive = liveEventInPlay !== null && events.includes(liveEventInPlay);
 
     return {
       key,
@@ -365,11 +393,17 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       short: monthShortLabel(key, tz),
       view: {
         title: monthLabel(key, tz),
-        meta: `GW ${events[0]}–${events.at(-1)} · ${complete ? 'settled' : 'in progress'}`,
+        provisional: hasLive,
+        meta: `GW ${events[0]}–${events.at(-1)} · ${
+          hasLive ? `GW ${liveEventInPlay} in play` : complete ? 'settled' : 'in progress'
+        }`,
         headers: ['Points', 'GWs', 'Avg'] as [string, string, string],
         note:
           `A gameweek belongs to the month of its FPL deadline, so months hold unequal numbers ` +
-          `of gameweeks — ${monthLabel(key, tz)} holds ${scheduled}. ${tiebreakNote}`,
+          `of gameweeks — ${monthLabel(key, tz)} holds ${scheduled}. ${tiebreakNote}` +
+          (hasLive
+            ? ` Includes provisional points from Gameweek ${liveEventInPlay}, which can still change.`
+            : ''),
         rows: toUiRows(rows, (r) => [
           String(r.points),
           String(r.gameweeks),
@@ -381,19 +415,26 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
 
   /* ---- season */
   const seasonRows = seasonTable(
-    source.scores.filter((s) => settledWeeks.includes(s.event)),
+    [...source.scores.filter((s) => settledWeeks.includes(s.event)), ...liveRows],
     source.managers,
     options,
   );
   const season: TableView = {
     title: 'Season table',
-    meta: seasonStarted
-      ? `After GW ${lastSettled} of ${source.weeks.length}`
-      : 'Not started',
+    provisional: liveEventInPlay !== null,
+    meta:
+      liveEventInPlay !== null
+        ? `Including GW ${liveEventInPlay} in play · provisional`
+        : seasonStarted
+          ? `After GW ${lastSettled} of ${source.weeks.length}`
+          : 'Not started',
     headers: ['Total', 'Hits', 'Best GW'],
     note:
       `Mirrors the official FPL standings, recomputed from stored per-gameweek rows so any ` +
-      `rule change applies retroactively.${prejoinNote}`,
+      `rule change applies retroactively.${prejoinNote}` +
+      (liveEventInPlay !== null
+        ? ` Includes provisional points from Gameweek ${liveEventInPlay}, which can still change.`
+        : ''),
     rows: toUiRows(seasonRows, (r) => [String(r.points), r.hits ? `−${r.hits}` : '—', String(r.best)]),
   };
 
@@ -475,12 +516,13 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
 
   if (cfg.live.enabled && !cfg.useFixtures && nextWeek) {
     try {
-      const state = await getLiveState(nextWeek.event);
+      const state = liveState;
       if (state) {
         const table = weeklyTable(state.rows, source.managers, nextWeek.event, options);
 
         live = {
           event: nextWeek.event,
+          fetchedAt: state.fetchedAt.toISOString(),
           nextDeadline: nextWeek.deadlineTime.toISOString(),
           fixtures: state.fixtures,
           started: state.started,
@@ -531,6 +573,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     showBench: cfg.site.showBenchColumn,
     // `auto` keeps the box out of the way of a small league, which is the
     // common case — a five-manager table has nothing to search.
+    refreshSeconds: cfg.live.autoRefresh ? cfg.live.refreshSeconds : null,
     showSearch:
       cfg.site.searchMode === 'always' ||
       (cfg.site.searchMode === 'auto' && source.managers.length > PAGE_SIZE),

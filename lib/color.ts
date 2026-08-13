@@ -2,7 +2,7 @@
  * Colour conversion for the raster icon path.
  *
  * The theme is authored in oklch — better perceptual uniformity, and it is
- * what the design tokens in section 10 specify. But Satori, which rasterises
+ * what the design tokens specify. But Satori, which rasterises
  * the Apple touch icon, only understands hex/rgb/named colours and throws on
  * `oklch(...)`. So raster output converts; CSS keeps the original.
  */

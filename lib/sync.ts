@@ -1,7 +1,7 @@
 /**
  * Reference-data sync: gameweeks and league membership.
  *
- * Both operations are idempotent (gotcha 6) — safe to run on every poll, which
+ * Both operations are idempotent — safe to run on every poll, which
  * is exactly what the hourly cron does. Scoring is deliberately NOT here; it
  * gates on `data_checked` and lands in the poller.
  */

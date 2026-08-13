@@ -7,10 +7,10 @@
  *
  * Three properties matter more than anything else here:
  *
- *   1. It gates on `data_checked`, never `finished` (gotcha 2). Bonus points
+ *   1. It gates on `data_checked`, never `finished`. Bonus points
  *      settle an hour or more after the final whistle, and stat corrections
  *      land days later. Declaring a winner early means retracting one.
- *   2. It is idempotent (gotcha 6). Every write is an upsert, and a gameweek
+ *   2. It is idempotent. Every write is an upsert, and a gameweek
  *      is only considered while `processed_at` is null. Re-running is a no-op.
  *   3. It is self-healing. It asks "which settled gameweeks are unprocessed?",
  *      not "what happened since last time", so a missed run — an outage, a

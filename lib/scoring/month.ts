@@ -2,9 +2,9 @@
  * Gameweek → calendar month mapping.
  *
  * Pure functions, no I/O — every rule here is testable with a fixture array
- * and no network (section 5b).
+ * and no network.
  *
- * The rule (section 4): a gameweek belongs to the month of its DEADLINE, not
+ * The rule: a gameweek belongs to the month of its DEADLINE, not
  * the month its matches were played in. Deterministic, and easy to explain to
  * the group when December turns out to hold six gameweeks and August two.
  */

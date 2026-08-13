@@ -36,6 +36,8 @@ export interface LiveFixture {
 
 export interface LiveState {
   event: number;
+  /** When the FPL data behind this was actually fetched. */
+  fetchedAt: Date;
   fixtures: LiveFixture[];
   started: number;
   finished: number;
@@ -118,6 +120,7 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
     fetchFixtures(event),
     fetchLiveEvent(event),
   ]);
+  const fetchedAt = new Date();
 
   const teamName = new Map(bootstrap.teams.map((t) => [t.id, t.short_name]));
   const elementTeam = new Map(bootstrap.elements.map((e) => [e.id, e.team]));
@@ -142,6 +145,7 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
   if (started === 0) {
     return {
       event,
+      fetchedAt,
       fixtures: grid,
       started,
       finished,
@@ -213,6 +217,7 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
 
   return {
     event,
+    fetchedAt,
     fixtures: grid,
     started,
     finished,

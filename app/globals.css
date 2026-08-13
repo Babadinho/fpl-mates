@@ -58,6 +58,12 @@
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
+@keyframes fplspin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 body {
   background: var(--bg);
   color: var(--ink);

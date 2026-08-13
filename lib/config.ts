@@ -1,7 +1,7 @@
 /**
  * Single source of truth for every configurable value.
  *
- * Rules this file enforces (technical-brief section 11):
+ * Rules this file enforces:
  *   1. `process.env` is read HERE AND NOWHERE ELSE in the codebase.
  *   2. The app boots with only FPL_LEAGUE_ID and DATABASE_URL set.
  *   3. A missing optional variable degrades a feature; it never crashes the poller.
@@ -47,10 +47,25 @@ const cssColor = (fallback: string) =>
       message: 'contains characters not valid in a CSS colour',
     });
 
+/** Software name and version. Forks that rename should change this. */
+const APP_NAME = 'fpl-mates';
+const APP_VERSION = '0.1.0';
+
+/**
+ * Identifies the software AND the deployment running it, so a fork's traffic
+ * points at the fork rather than at this repository. Falls back to the
+ * upstream URL when the site has no public address yet.
+ */
+function defaultUserAgent(siteUrl: string): string {
+  const local = siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1');
+  const contact = local ? `https://github.com/Babadinho/${APP_NAME}` : siteUrl;
+  return `${APP_NAME}/${APP_VERSION} (+${contact})`;
+}
+
 const TIEBREAK_KEYS = ['points', 'hits', 'bench', 'overall_rank'] as const;
 export type TiebreakKey = (typeof TIEBREAK_KEYS)[number];
 
-/** Plain-English rule names for the footnote under every table (section 10). */
+/** Plain-English rule names for the footnote under every table. */
 export const TIEBREAK_LABELS: Record<TiebreakKey, string> = {
   points: 'the higher score',
   hits: 'fewer points lost to transfers',
@@ -58,7 +73,7 @@ export const TIEBREAK_LABELS: Record<TiebreakKey, string> = {
   overall_rank: 'the better overall FPL rank',
 };
 
-/** Comma-separated tie-break rule keys, applied in order (section 4). */
+/** Comma-separated tie-break rule keys, applied in order. */
 const tiebreakOrder = z
   .string()
   .optional()
@@ -143,10 +158,10 @@ const schema = z.object({
   // ---- Scoring rules -----------------------------------------------------
   TIMEZONE: timezone,
   TIEBREAK_ORDER: tiebreakOrder,
-  /** Do gameweeks before a manager joined the league count? (gotcha 5) */
+  /** Do gameweeks before a manager joined the league count? */
   COUNT_PREJOIN_GWS: boolEnv(false),
 
-  // ---- Theme (mapped onto the CSS variables in section 10) ---------------
+  // ---- Theme (mapped onto the CSS variables) ------------------------------
   ACCENT_COLOR: cssColor('oklch(0.42 0.17 305)'),
   POP_COLOR: cssColor('oklch(0.72 0.19 145)'),
   ACCENT_COLOR_DARK: cssColor('oklch(0.72 0.19 145)'),
@@ -192,13 +207,16 @@ const schema = z.object({
     .string()
     .optional()
     .transform((v) => (v?.trim() ? v.trim().replace(/\/+$/, '') : 'https://fantasy.premierleague.com/api')),
-  /** Descriptive UA, per gotcha 3. */
-  FPL_USER_AGENT: z
-    .string()
-    .optional()
-    .transform((v) => v?.trim() || `fpl-mates/${process.env.npm_package_version ?? '0.1.0'} (+https://github.com/Babadinho/fpl-mates)`),
+  /** FPL throttles anonymous clients, so identify this deployment. */
+  FPL_USER_AGENT: z.string().min(1).optional(),
   /** Parallel entry-history requests. Kept low to stay a polite client. */
   POLL_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(4),
+  /**
+   * Seconds to share one live/fixtures fetch across visitors. Without it, ten
+   * people opening the page at once costs twenty upstream requests for
+   * identical data.
+   */
+  LIVE_CACHE_SECONDS: z.coerce.number().int().min(0).max(300).default(30),
   /** bootstrap-static is large and near-static; cache it hard. */
   BOOTSTRAP_CACHE_HOURS: z.coerce.number().int().min(1).max(168).default(24),
   /** If set, /api/poll requires `Authorization: Bearer <secret>`. */
@@ -215,7 +233,13 @@ const schema = z.object({
    * Costs two API requests per page load; turn off to poll only.
    */
   LIVE_SCORING: boolEnv(true),
-  /** How often the browser asks for fresh live scores, in seconds. */
+  /**
+   * Re-fetch live scores on a timer. Off by default — the refresh button is
+   * the intended way, and a timer means every open tab polls whether anyone
+   * is watching or not.
+   */
+  LIVE_AUTO_REFRESH: boolEnv(false),
+  /** Interval for LIVE_AUTO_REFRESH, in seconds. Ignored when it is off. */
   LIVE_REFRESH_SECONDS: z.coerce.number().int().min(15).max(600).default(60),
 
   // ---- WhatsApp (absent = publisher disabled, web only) ------------------
@@ -274,15 +298,17 @@ function load() {
 
     fpl: {
       baseUrl: env.FPL_BASE_URL,
-      userAgent: env.FPL_USER_AGENT,
+      userAgent: env.FPL_USER_AGENT ?? defaultUserAgent(env.SITE_URL),
       concurrency: env.POLL_CONCURRENCY,
       bootstrapCacheHours: env.BOOTSTRAP_CACHE_HOURS,
+      liveCacheSeconds: env.LIVE_CACHE_SECONDS,
     },
 
     cronSecret: env.CRON_SECRET,
 
     live: {
       enabled: env.LIVE_SCORING,
+      autoRefresh: env.LIVE_AUTO_REFRESH,
       refreshSeconds: env.LIVE_REFRESH_SECONDS,
     },
 

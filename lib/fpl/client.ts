@@ -3,7 +3,7 @@
  *
  * Every response is validated (see schemas.ts). Politeness is built in rather
  * than optional, because once this is self-hosted many instances share the
- * same upstream (section 11): descriptive User-Agent, low concurrency, and
+ * same upstream: descriptive User-Agent, low concurrency, and
  * hard backoff on 429/403.
  */
 import { getConfig } from '../config';
@@ -39,9 +39,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *
  * 403 is treated as retryable on purpose: the FPL CDN returns it when it
  * dislikes the caller's IP, which on a serverless host is intermittent
- * rather than permanent (gotcha 3).
+ * rather than permanent.
  */
-async function getJson(path: string): Promise<unknown> {
+async function getJson(path: string, revalidate?: number): Promise<unknown> {
   const cfg = getConfig();
   const url = `${cfg.fpl.baseUrl}/${path.replace(/^\/+/, '')}`;
 
@@ -49,10 +49,12 @@ async function getJson(path: string): Promise<unknown> {
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
+      // Live endpoints share one upstream fetch across concurrent visitors;
+      // everything else must be fresh, since the poller decides winners on it.
       const res = await fetch(url, {
         headers: { 'User-Agent': cfg.fpl.userAgent, Accept: 'application/json' },
         signal: AbortSignal.timeout(20_000),
-        cache: 'no-store',
+        ...(revalidate ? { next: { revalidate } } : { cache: 'no-store' as const }),
       });
 
       if (res.ok) return await res.json();
@@ -115,7 +117,7 @@ export interface LeagueRoster {
  * every member of the league is in `new_entries`. A poller that reads only the
  * former discovers nobody, which is silent rather than loud.
  *
- * Both arrays paginate independently (section 11, item 2).
+ * Both arrays paginate independently.
  */
 export async function fetchLeagueRoster(leagueId = getConfig().leagueId): Promise<LeagueRoster> {
   const byEntry = new Map<number, LeagueMember>();
@@ -165,7 +167,7 @@ export async function fetchLeagueRoster(leagueId = getConfig().leagueId): Promis
   addRanked(first.standings.results);
   addUnranked(first.new_entries?.results ?? []);
 
-  // Extra requests only when a block actually overflows (section 11, item 2).
+  // Extra requests only when a block actually overflows.
   let hasMoreRanked = first.standings.has_next;
   for (let page = 2; hasMoreRanked; page++) {
     const next = leagueStandingsSchema.parse(
@@ -198,7 +200,7 @@ export async function fetchEntryHistory(entryId: number) {
 
 /**
  * Runs `task` over `items` with a small concurrency cap, so a 200-manager
- * league does not fire 200 simultaneous requests (section 11, item 2).
+ * league does not fire 200 simultaneous requests.
  */
 export async function mapWithConcurrency<T, R>(
   items: readonly T[],
@@ -223,7 +225,7 @@ export async function mapWithConcurrency<T, R>(
 
 /**
  * bootstrap-static is ~1.4MB and near-static, so it is cached in memory for
- * BOOTSTRAP_CACHE_HOURS (section 11, item 1). The live table needs `teams` for
+ * BOOTSTRAP_CACHE_HOURS. The live table needs `teams` for
  * fixture short codes and `elements` to map players to fixtures.
  */
 let bootstrapCache: { at: number; data: z.infer<typeof bootstrapSchema> } | undefined;
@@ -243,7 +245,8 @@ export async function fetchBootstrap() {
 
 /** All fixtures for one gameweek. One call drives the whole fixtures grid. */
 export async function fetchFixtures(event: number) {
-  return fixturesSchema.parse(await getJson(`fixtures/?event=${event}`));
+  const { fpl } = getConfig();
+  return fixturesSchema.parse(await getJson(`fixtures/?event=${event}`, fpl.liveCacheSeconds));
 }
 
 /**
@@ -253,7 +256,8 @@ export async function fetchFixtures(event: number) {
  * makes a live table affordable.
  */
 export async function fetchLiveEvent(event: number) {
-  return liveEventSchema.parse(await getJson(`event/${event}/live/`));
+  const { fpl } = getConfig();
+  return liveEventSchema.parse(await getJson(`event/${event}/live/`, fpl.liveCacheSeconds));
 }
 
 /**

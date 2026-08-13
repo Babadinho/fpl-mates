@@ -20,6 +20,7 @@
     --hover:oklch(0.955 0.01 300);
   }
   body { margin:0; background:var(--bg); -webkit-font-smoothing:antialiased; }
+  @keyframes fplspin { to { transform:rotate(360deg); } }
   @media (max-width: 760px) {
     [data-r="page"] { padding:0 16px 64px !important; }
     [data-r="header"] { flex-direction:column !important; align-items:flex-start !important; gap:18px !important; padding:28px 0 24px !important; }
@@ -289,7 +290,20 @@
             <h2 style="margin:0; font-family:'Bebas Neue',Impact,sans-serif; font-size:32px; font-weight:400; letter-spacing:0.02em; text-transform:uppercase;">{{ fixtures.title }}</h2>
             <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">{{ fixtures.deadline }}</span>
           </div>
-          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--dim);">{{ fixtures.state }}</span>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--dim);">{{ fixtures.state }}</span>
+            <sc-if value="{{ fixtures.canRefresh }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);">{{ fixtures.refreshed }}</span>
+                <button type="button" title="Refresh scores" onClick="{{ fixtures.refresh }}" style="{{ fixtures.refreshStyle }}" style-hover="border-color:var(--accent); color:var(--accent);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="{{ fixtures.iconStyle }}">
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                    <polyline points="21 4 21 10 15 10"></polyline>
+                  </svg>
+                </button>
+              </div>
+            </sc-if>
+          </div>
         </div>
         <div data-r="fixgrid" style="display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
           <sc-for list="{{ fixtures.list }}" as="fx" hint-placeholder-count="10">
@@ -320,7 +334,7 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;leagueName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;The Sunday League&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;passcodeGate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;preseason&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;playedGw&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:12,&quot;min&quot;:1,&quot;max&quot;:38,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;liveMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;leagueSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:240,&quot;min&quot;:8,&quot;max&quot;:400,&quot;step&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.42 0.17 305)&quot;,&quot;options&quot;:[&quot;oklch(0.42 0.17 305)&quot;,&quot;oklch(0.45 0.16 255)&quot;,&quot;oklch(0.45 0.17 25)&quot;,&quot;oklch(0.35 0.03 300)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;pop&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.72 0.19 145)&quot;,&quot;options&quot;:[&quot;oklch(0.72 0.19 145)&quot;,&quot;oklch(0.78 0.17 190)&quot;,&quot;oklch(0.78 0.16 100)&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBench&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
 class Component extends DCLogic {
-  state = { pass: '', passErr: '', unlocked: false, tab: 'weekly', gw: 0, month: '', dark: false, query: '', page: 0, now: Date.now(), fixOpen: true };
+  state = { pass: '', passErr: '', unlocked: false, refreshing: false, refreshedAt: 0, tab: 'weekly', gw: 0, month: '', dark: false, query: '', page: 0, now: Date.now(), fixOpen: true };
   PAGE_SIZE = 25;
 
   MONTHS = [
@@ -460,6 +474,19 @@ class Component extends DCLogic {
     };
   }
 
+  refreshedLabel() {
+    if (this.state.refreshing) return 'Refreshing';
+    const ms = this.state.refreshedAt ? this.state.now - this.state.refreshedAt : 18 * 60000;
+    const m = Math.floor(ms / 60000);
+    return m < 1 ? 'Updated just now' : 'Updated ' + m + (m === 1 ? ' min ago' : ' mins ago');
+  }
+
+  doRefresh() {
+    if (this.state.refreshing) return;
+    this.setState({ refreshing: true });
+    setTimeout(() => this.setState({ refreshing: false, refreshedAt: Date.now() }), 900);
+  }
+
   liveRows() {
     const raw = this.data().scores[this.LIVE_GW] || [];
     return this.sortRows(raw.map(r => {
@@ -594,6 +621,8 @@ class Component extends DCLogic {
           title: 'Gameweek 1',
           deadline: 'Deadline ' + this.shortDeadline() + ' \u00b7 ' + this.countdown(),
           state: 'Not started',
+          canRefresh: false, refreshing: false, refreshed: '', refresh: () => {},
+          refreshStyle: '', iconStyle: '',
           note: 'Kickoff times are provisional until the Premier League confirms TV selections.',
           list: this.FIXTURES.map(([h, a]) => ({
             home: h, away: a, score: 'Sat 15:00', clock: '',
@@ -715,6 +744,12 @@ class Component extends DCLogic {
         title: this.LIVE ? 'Gameweek ' + this.LIVE_GW : 'Gameweek 38',
         deadline: this.LIVE ? 'Deadline ' + this.shortDeadline() + ' \u00b7 ' + this.countdown() : '2026/27 finished',
         state: this.LIVE ? '6 of 10 played' : 'Season complete',
+        canRefresh: this.LIVE,
+        refreshing: this.state.refreshing,
+        refreshed: this.refreshedLabel(),
+        refresh: () => this.doRefresh(),
+        refreshStyle: `appearance:none; cursor:${this.state.refreshing ? 'default' : 'pointer'}; display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0; border-radius:999px; border:1px solid ${t.line}; background:${t.panel}; color:${this.state.refreshing ? t.dim : t.ink}; transition:color 120ms ease, border-color 120ms ease;`,
+        iconStyle: `display:block; width:14px; height:14px; transform-origin:50% 50%; animation:${this.state.refreshing ? 'fplspin 900ms linear infinite' : 'none'};`,
         note: this.LIVE
           ? 'Scores refresh every few minutes while fixtures are in play. A gameweek is only counted once FPL marks it data_checked; until then the live table is a projection.'
           : 'No fixtures remaining this season.',

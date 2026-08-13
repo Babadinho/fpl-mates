@@ -1,5 +1,5 @@
 /**
- * Schema per technical-brief section 5.
+ * Schema for stored league data.
  *
  * The design principle worth preserving: `gw_scores` holds RAW per-gameweek
  * rows, not just computed tables. Any scoring rule can then be recalculated
@@ -17,8 +17,8 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /**
- * The league itself. One row — this instance serves one league (section 11,
- * item 4). Persisted so the page can show the real league name without an
+ * The league itself. One row — this instance serves one league.
+ * Persisted so the page can show the real league name without an
  * env override, and without calling the API at request time.
  */
 export const league = pgTable('league', {
@@ -38,7 +38,7 @@ export const managers = pgTable('managers', {
   playerName: text('player_name').notNull(),
   /**
    * First gameweek that counts for them, derived from `joined_time` — the
-   * first gameweek whose deadline falls after they joined. See gotcha 5.
+   * first gameweek whose deadline falls after they joined.
    */
   joinedGw: smallint('joined_gw').notNull(),
   /**
@@ -65,7 +65,7 @@ export const gameweeks = pgTable('gameweeks', {
   monthKey: text('month_key').notNull(),
   /** All matches played. NOT sufficient to settle scores. */
   finished: boolean('finished').notNull().default(false),
-  /** Bonus applied and stats final. THIS is the flag to gate on (gotcha 2). */
+  /** Bonus applied and stats final. Gate on THIS, not `finished`. */
   dataChecked: boolean('data_checked').notNull().default(false),
   /** Average score across all FPL managers — context for the weekly post. */
   averageEntryScore: smallint('average_entry_score'),
@@ -87,7 +87,7 @@ export const gwScores = pgTable('gw_scores', {
   transferCost: smallint('transfer_cost').notNull().default(0),
   /**
    * gross - cost. Denormalised deliberately: it is what every table sorts and
-   * sums on, and storing it keeps the scoring queries readable (section 5b).
+   * sums on, and storing it keeps the scoring queries readable.
    */
   points: smallint('points').notNull(),
   pointsOnBench: smallint('points_on_bench').notNull().default(0),

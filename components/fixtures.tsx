@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Refresh } from './refresh';
 import type { LeaderboardView } from '@/lib/view';
 
 /** Ticks once a second so the deadline countdown stays live. */
@@ -26,7 +27,13 @@ function useCountdown(iso: string | null) {
   return `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
-export function Fixtures({ live }: { live: NonNullable<LeaderboardView['live']> }) {
+export function Fixtures({
+  live,
+  refreshSeconds,
+}: {
+  live: NonNullable<LeaderboardView['live']>;
+  refreshSeconds: number | null;
+}) {
   const countdown = useCountdown(live.nextDeadline);
 
   return (
@@ -38,9 +45,16 @@ export function Fixtures({ live }: { live: NonNullable<LeaderboardView['live']> 
             {countdown ? `Deadline in ${countdown}` : 'Deadline'}
           </span>
         </div>
-        <span className="font-mono text-[11px] tracking-[0.1em] text-dim uppercase">
-          {live.stateLabel}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[11px] tracking-[0.1em] text-dim uppercase">
+            {live.stateLabel}
+          </span>
+          {/* Only auto-refreshes while something is actually being played. */}
+          <Refresh
+            fetchedAt={live.fetchedAt}
+            intervalSeconds={live.inPlay && refreshSeconds ? refreshSeconds : undefined}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-px border-t border-b border-line bg-line sm:grid-cols-3 lg:grid-cols-5">
