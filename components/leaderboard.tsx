@@ -270,6 +270,15 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
 
   const tabs = data.live ? [...BASE_TABS, { key: 'fixtures' as Tab, label: 'Fixtures' }] : BASE_TABS;
 
+  // Any table showing points from the gameweek in play can be refreshed.
+  const liveRefresh = data.live
+    ? {
+        fetchedAt: data.live.fetchedAt,
+        intervalSeconds:
+          data.live.inPlay && data.refreshSeconds ? data.refreshSeconds : undefined,
+      }
+    : undefined;
+
   return (
     <>
       {/*
@@ -332,19 +341,25 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
           key={`weekly-${event}`}
           view={weekView}
           showSearch={data.showSearch}
-          refresh={
-            liveEvent !== null && event === liveEvent && data.live
-              ? {
-                  fetchedAt: data.live.fetchedAt,
-                  intervalSeconds:
-                    data.live.inPlay && data.refreshSeconds ? data.refreshSeconds : undefined,
-                }
-              : undefined
-          }
+          refresh={liveEvent !== null && event === liveEvent ? liveRefresh : undefined}
         />
       )}
-      {!data.preseason && tab === 'monthly' && monthView && <Table key={`monthly-${monthKey}`} view={monthView} showSearch={data.showSearch} />}
-      {!data.preseason && tab === 'season' && <Table key="season" view={data.season} showSearch={data.showSearch} />}
+      {!data.preseason && tab === 'monthly' && monthView && (
+        <Table
+          key={`monthly-${monthKey}`}
+          view={monthView}
+          showSearch={data.showSearch}
+          refresh={monthView.provisional ? liveRefresh : undefined}
+        />
+      )}
+      {!data.preseason && tab === 'season' && (
+        <Table
+          key="season"
+          view={data.season}
+          showSearch={data.showSearch}
+          refresh={data.season.provisional ? liveRefresh : undefined}
+        />
+      )}
       {!data.preseason && tab === 'history' && <History history={data.history} />}
       {tab === 'fixtures' && data.live && (
         <Fixtures live={data.live} refreshSeconds={data.refreshSeconds} />

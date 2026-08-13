@@ -38,8 +38,9 @@ set in the Vercel dashboard so the route cannot be triggered by anyone else.
 
 ### 4. Turn off fixtures
 
-`.env.local` currently sets `USE_FIXTURES=1`. If that reaches production the
-site shows the mock league — "The Sunday League" — all season.
+Done — `USE_FIXTURES` is off locally and never set in Vercel, so production
+reads the real league. Worth re-checking before the season starts, because the
+failure is silent: the site would simply show "The Sunday League" all year.
 
 ### 5. Verify by hand once GW1 settles
 

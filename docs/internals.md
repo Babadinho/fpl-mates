@@ -157,6 +157,13 @@ Every write is an upsert, so it is safe on every poll (gotcha 6).
 later poll would otherwise clear `joined_time` (it vanishes once a manager is
 ranked) and silently change which gameweeks count for them.
 
+That vanishing is also a hard limit on adopting this mid-season: members who
+were already ranked at first poll have no recoverable join date, so
+`joinedGameweek(null, …)` treats them as present from GW1. Assuming absence
+when you simply do not know would be worse, but it means `COUNT_PREJOIN_GWS`
+has no effect for those members. Anyone joining after the first poll is dated
+correctly.
+
 ---
 
 ## The poller — `lib/poll.ts`, `app/api/poll/route.ts`
@@ -312,7 +319,7 @@ to do nothing, on top of the browser's own aggressive favicon caching.
 
 ## Fixtures — `lib/fixtures/mock.ts`
 
-`USE_FIXTURES=1` renders a deterministic mock league instead of reading
+`USE_FIXTURES=true` renders a deterministic mock league instead of reading
 Postgres. Two purposes: finishing the design before the season starts, and
 letting the app run and the tests pass without touching the live API.
 

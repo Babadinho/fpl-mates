@@ -126,7 +126,16 @@ after the final whistle, and corrections land days later. Live scores are shown
 while matches are played, but no winner is recorded until the gameweek is final.
 
 **Managers score from the gameweek they joined the league**, not from the start
-of the season. Set `COUNT_PREJOIN_GWS=true` if you would rather count everything.
+of the season. Somebody joining at GW10 arrives with GW1–9 already on FPL's
+record; counting those would let them win a month they were not in. Set
+`COUNT_PREJOIN_GWS=true` if you would rather count everything.
+
+> **If you set this up mid-season**, the join dates of existing members are not
+> recoverable. FPL only reports a join time while a manager is unranked, so
+> anyone already in the table when you first run the poller is treated as
+> present from Gameweek 1 — which is `COUNT_PREJOIN_GWS=true` behaviour for
+> them whatever you set. Members who join *after* you start are dated
+> correctly. Starting before the season avoids this entirely.
 
 Whatever you configure is printed underneath every table, so nobody has to read
 the source to find out how they lost.
@@ -157,7 +166,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-No database and no league to hand? Set `USE_FIXTURES=1` and it renders a
+No database and no league to hand? Set `USE_FIXTURES=true` and it renders a
 deterministic demo league from `lib/fixtures/`. That is what the screenshots
 above show, and it is how the tests run without touching the live API.
 
