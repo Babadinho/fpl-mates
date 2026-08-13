@@ -18,7 +18,10 @@ jobs:
 
     env:
       FPL_LEAGUE_ID: '314'
-      DATABASE_URL: 'postgres://ci:ci@localhost:5432/ci'
+      # No password: nothing connects, and a dummy with one trips the
+      # secret scan below — which is the scan working, not a false alarm to
+      # silence by excluding workflow files.
+      DATABASE_URL: 'postgres://ci@localhost:5432/ci'
       USE_FIXTURES: 'true'
       LIVE_SCORING: 'false'
 
