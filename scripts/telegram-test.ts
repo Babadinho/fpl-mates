@@ -22,7 +22,10 @@ async function main() {
   const { respondTo } = await import('../lib/telegram/commands');
   const { announce } = await import('../lib/telegram/client');
 
-  const command = process.argv[2] ?? '/table';
+  // Git Bash rewrites a leading slash into a Windows path, so accept both
+  // "/table" and "table".
+  const raw = (process.argv[2] ?? 'table').split(/[\/]/).pop() ?? 'table';
+  const command = `/${raw}`;
   const message = await respondTo(command);
 
   if (!message) {
