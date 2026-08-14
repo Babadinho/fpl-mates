@@ -118,6 +118,8 @@ export const weeklyWinners = pgTable('weekly_winners', {
   /** The rule that broke the tie, or null if it was won outright. */
   decidedBy: text('decided_by'),
   declaredAt: timestamp('declared_at', { withTimezone: true }).notNull().defaultNow(),
+  /** Set once announced, so a reprocessed gameweek is never posted twice. */
+  postedAt: timestamp('posted_at', { withTimezone: true }),
 });
 
 /** Declared once the final gameweek of a calendar month settles. */

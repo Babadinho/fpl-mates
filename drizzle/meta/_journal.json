@@ -36,6 +36,13 @@
       "when": 1786571480359,
       "tag": "0004_entry_picks",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786707945343,
+      "tag": "0005_weekly_winner_posted_at",
+      "breakpoints": true
     }
   ]
 }
