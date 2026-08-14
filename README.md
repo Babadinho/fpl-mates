@@ -101,6 +101,41 @@ automatically.
 
 ---
 
+## Telegram bot (optional)
+
+A bot that answers commands and posts the result into your group when a
+gameweek is confirmed. Free, and setup takes about a minute.
+
+1. Message [@BotFather](https://t.me/botfather), send `/newbot`, follow the
+   prompts. It gives you a token — that is `TELEGRAM_BOT_TOKEN`.
+2. Add the bot to your group. To find the chat id, send any message there, open
+   `https://api.telegram.org/bot<TOKEN>/getUpdates` and read
+   `result[0].message.chat.id`. Group ids are negative.
+3. Register the webhook so commands work:
+
+   ```bash
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook"      -d "url=https://your-site/api/telegram"      -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+   ```
+
+| Command | Returns |
+|---|---|
+| `/table` | season standings |
+| `/gw` `/gw 5` | a gameweek — the live one if a match is on |
+| `/month` `/month August` | a month's table |
+| `/winners` | weekly and monthly winner history |
+| `/fixtures` | fixtures and live scores |
+| `/next` | next deadline |
+| `/help` | the list |
+
+Set `TELEGRAM_CHAT_ID` and the bot also announces each gameweek as it is
+confirmed — the same moment the winner is recorded, guarded so a reprocessed
+gameweek is never posted twice.
+
+Bots in groups only see messages beginning with `/`. Telegram calls this privacy
+mode, and it means the bot cannot read the rest of your conversation.
+
+---
+
 ## How the scoring works
 
 Read this before pointing your league at it — these are the rules your group

@@ -248,6 +248,14 @@ const schema = z.object({
   /** Interval for LIVE_AUTO_REFRESH, in seconds. Ignored when it is off. */
   LIVE_REFRESH_SECONDS: z.coerce.number().int().min(15).max(600).default(60),
 
+  // ---- Telegram (absent = bot disabled) ----------------------------------
+  /** From @BotFather. Absent means no bot and no webhook. */
+  TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
+  /** Where settled gameweeks are announced. Absent means commands only. */
+  TELEGRAM_CHAT_ID: z.string().min(1).optional(),
+  /** Checked against Telegram's X-Telegram-Bot-Api-Secret-Token header. */
+  TELEGRAM_WEBHOOK_SECRET: z.string().min(1).optional(),
+
   // ---- WhatsApp (absent = publisher disabled, web only) ------------------
   WHATSAPP_PHONE_NUMBER_ID: z.string().min(1).optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().min(1).optional(),
@@ -320,6 +328,14 @@ function load() {
 
     /** Render the checked-in mock league instead of reading Postgres. */
     useFixtures: env.USE_FIXTURES,
+
+    telegram: env.TELEGRAM_BOT_TOKEN
+      ? {
+          token: env.TELEGRAM_BOT_TOKEN,
+          chatId: env.TELEGRAM_CHAT_ID,
+          webhookSecret: env.TELEGRAM_WEBHOOK_SECRET,
+        }
+      : null,
 
     /** Null when any required credential is absent — the web app runs regardless. */
     whatsapp:

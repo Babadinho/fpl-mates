@@ -25,6 +25,9 @@ import { fetchEntryHistory, mapWithConcurrency } from './fpl/client';
 import { CHIP_LABELS, type FplHistoryEntry } from './fpl/schemas';
 import { declareWinner, monthlyTable, pointsAfterCost, weeklyTable, type ManagerRef, type ScoreRow } from './scoring/tables';
 import { syncReferenceData } from './sync';
+import { announce } from './telegram/client';
+import { formatSettled } from './telegram/format';
+import { getLeaderboardView } from './view';
 
 export interface PollResult {
   outcome: 'ok' | 'skipped' | 'error';
@@ -236,6 +239,7 @@ export async function runPoll(): Promise<PollResult> {
         .where(eq(gameweeks.event, week.event));
 
       processed.push(week.event);
+      await announceSettled(week.event);
 
       // ---- monthly winner, only once every gameweek in the month has settled
       await declareMonthIfComplete(week.monthKey, refs, options);
@@ -255,6 +259,34 @@ export async function runPoll(): Promise<PollResult> {
       detail: error instanceof Error ? error.message : String(error),
       processed: [],
     });
+  }
+}
+
+/**
+ * Posts a settled gameweek to Telegram, once.
+ *
+ * Guarded by weekly_winners.posted_at rather than by the caller, so a re-run
+ * that reprocesses a gameweek still cannot repost it.
+ */
+async function announceSettled(event: number) {
+  const db = getDb();
+
+  const [row] = await db
+    .select({ postedAt: weeklyWinners.postedAt })
+    .from(weeklyWinners)
+    .where(eq(weeklyWinners.event, event))
+    .limit(1);
+
+  if (!row || row.postedAt) return;
+
+  const message = formatSettled(await getLeaderboardView(), event);
+  if (!message) return;
+
+  if (await announce(message)) {
+    await db
+      .update(weeklyWinners)
+      .set({ postedAt: new Date() })
+      .where(eq(weeklyWinners.event, event));
   }
 }
 

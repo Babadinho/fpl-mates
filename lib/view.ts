@@ -55,6 +55,8 @@ export interface HeroCell {
 export interface LeaderboardView {
   leagueName: string;
   seasonLabel: string;
+  /** Public address, for links in messages sent elsewhere. */
+  siteUrl: string;
   eyebrow: string;
   showBench: boolean;
   showSearch: boolean;
@@ -565,6 +567,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   return {
     live,
     leagueName: cfg.site.leagueName ?? source.leagueName,
+    siteUrl: cfg.site.url,
     // A Premier League season always spans two calendar years, so the label is
     // derived from the OPENING year — deriving it from the last loaded
     // gameweek would read "2026/26" whenever only the early rounds are present.

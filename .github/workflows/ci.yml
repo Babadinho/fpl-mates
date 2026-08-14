@@ -7,8 +7,8 @@
 name: CI
 
 on:
+  # Every branch, not just main — work happens on staging.
   push:
-    branches: [main]
   pull_request:
 
 jobs:
