@@ -3,8 +3,12 @@
  *
  * Pure and I/O-free, like the scoring modules, so the output can be tested
  * without a bot token.
+ *
+ * Rows use inline code, never fenced blocks. Both are monospace, but Telegram
+ * offers a COPY CODE bar only for fences — full width on mobile, which swamps
+ * a short table.
  */
-import type { LeaderboardView, TableView, UiRow } from '../view';
+import type { LeaderboardView, TableView } from '../view';
 
 /** Telegram rejects anything longer outright. */
 export const MAX_MESSAGE = 4096;
@@ -20,29 +24,59 @@ function escape(text: string): string {
   return [...text].map((c) => (MARKDOWN_SPECIAL.has(c) ? String.fromCharCode(92) + c : c)).join('');
 }
 
+/**
+ * One line per manager, each wrapped in inline code.
+ *
+ * Inline code is monospace, so columns line up, but Telegram only offers a
+ * COPY CODE bar for fenced blocks — which on mobile is a full-width button
+ * that swamps a short table. Text inside a code entity also needs no
+ * MarkdownV2 escaping, so names with dots arrive clean.
+ */
 function pad(text: string, width: number): string {
   return text.length > width ? `${text.slice(0, width - 1)}…` : text.padEnd(width);
 }
 
+/** Backticks would end the code entity early. */
+function codeSafe(text: string): string {
+  return text.replace(/`/g, "'");
+}
+
 /**
- * A fixed-width block so columns line up. Long leagues are cut rather than
- * paginated — someone wanting rank 87 is better served by the website.
+ * Wraps a row as inline code — monospace, but no COPY CODE bar.
+ * Trailing padding is trimmed: it sits inside the code span and shows as a
+ * stretched grey block on an empty column.
  */
-function rowsToBlock(rows: UiRow[], siteUrl: string): string {
-  const shown = rows.slice(0, ROW_LIMIT);
-  const nameWidth = Math.max(...shown.map((r) => Math.min(r.name.length, 18)), 4);
+function codeRow(line: string): string {
+  return '`' + codeSafe(line.trimEnd()) + '`';
+}
 
-  const lines = shown.map((r) => `${r.rank}  ${pad(r.name, nameWidth)}  ${r.c0.padStart(4)}`);
+function rowsToLines(view: TableView): string[] {
+  const shown = view.rows.slice(0, ROW_LIMIT);
+  const nameWidth = Math.max(...shown.map((r) => Math.min(r.name.length, 16)), 6);
 
-  if (rows.length > shown.length) {
-    lines.push(`… and ${rows.length - shown.length} more at ${siteUrl}`);
+  const lines = shown.map((r) => {
+    const extra = r.c1 && r.c1 !== '—' ? r.c1.padStart(4) : '';
+    return codeRow(
+      `${String(Number(r.rank)).padStart(2)}  ${pad(r.name, nameWidth)}  ${r.c0.padStart(3)}${extra}`,
+    );
+  });
+
+  if (view.rows.length > shown.length) {
+    lines.push(escape(`… and ${view.rows.length - shown.length} more`));
   }
 
-  return `\`\`\`\n${lines.join('\n')}\n\`\`\``;
+  return lines;
 }
 
 function table(view: TableView, siteUrl: string): string {
-  return [`*${escape(view.title)}*`, escape(view.meta), rowsToBlock(view.rows, siteUrl)].join('\n');
+  return [
+    `*${escape(view.title)}*`,
+    escape(view.meta),
+    '',
+    ...rowsToLines(view),
+    '',
+    `[Full table](${siteUrl})`,
+  ].join('\n');
 }
 
 export function formatSeason(data: LeaderboardView): string {
@@ -89,51 +123,72 @@ export function formatWinners(data: LeaderboardView): string {
     return escape('Nothing has been won yet — the season has not started.');
   }
 
-  const parts = [`*Winners*`];
+  const parts = ['*Winners*'];
+  const nameWidth = Math.max(
+    ...[...weekly, ...monthly].map((w) => Math.min(w.name.length, 16)),
+    6,
+  );
 
   if (weekly.length) {
-    const lines = weekly.slice(0, 12).map((w) => `${w.gw}  ${pad(w.name, 18)}  ${String(w.pts).padStart(4)}`);
-    parts.push('_Weekly_', `\`\`\`\n${lines.join('\n')}\n\`\`\``);
+    parts.push(
+      '',
+      '_Weekly_',
+      ...weekly
+        .slice(0, 12)
+        .map((w) => codeRow(`${w.gw.padEnd(5)}  ${pad(w.name, nameWidth)}  ${String(w.pts).padStart(3)}`)),
+    );
   }
 
   if (monthly.length) {
-    const lines = monthly.map((m) => `${m.month}  ${pad(m.name, 18)}  ${String(m.pts).padStart(4)}`);
-    parts.push('_Monthly_', `\`\`\`\n${lines.join('\n')}\n\`\`\``);
+    parts.push(
+      '',
+      '_Monthly_',
+      ...monthly.map((m) =>
+        codeRow(`${m.month.padEnd(5)}  ${pad(m.name, nameWidth)}  ${String(m.pts).padStart(3)}`),
+      ),
+    );
   }
 
+  parts.push('', `[Full history](${data.siteUrl})`);
   return parts.join('\n');
 }
 
 export function formatFixtures(data: LeaderboardView): string {
-  if (!data.live) return escape('Live scores are switched off.');
+  // Also absent in demo mode, where there are no real fixtures to fetch —
+  // "switched off" would wrongly imply somebody disabled a setting.
+  if (!data.live) return escape('No fixtures to show.');
 
-  const lines = data.live.fixtures.map((f) => {
-    const clock = f.clock ? ` ${f.clock}` : '';
-    return `${f.home.padEnd(4)}${f.score.padStart(11)}  ${f.away}${clock}`;
-  });
+  const lines = data.live.fixtures.map((f) =>
+    codeRow(`${f.home.padEnd(4)}${f.score.padStart(10)}  ${f.away.padEnd(4)}${f.clock.padStart(4)}`),
+  );
 
   return [
     `*Gameweek ${data.live.event}*`,
     escape(data.live.stateLabel),
-    `\`\`\`\n${lines.join('\n')}\n\`\`\``,
+    '',
+    ...lines,
+    '',
+    `[Live table](${data.siteUrl})`,
   ].join('\n');
 }
 
 export function formatNext(data: LeaderboardView): string {
-  return [`*${escape(data.leagueName)}*`, escape(data.status.label), escape(data.status.sub)].join('\n');
+  // Before the season the status strip reads "no gameweeks played yet", which
+  // is fine beside the page's hero but useless from a command called /next.
+  const sub = data.preseason ? data.preseason.title : data.status.sub;
+  return [`*${escape(data.leagueName)}*`, escape(data.status.label), escape(sub)].join('\n');
 }
 
 export function formatHelp(): string {
   return [
     '*Commands*',
-    '```',
-    '/table      season standings',
-    '/gw [n]     a gameweek, latest if omitted',
-    '/month [x]  a month, current if omitted',
-    '/winners    weekly and monthly winners',
-    '/fixtures   fixtures and live scores',
-    '/next       next deadline',
-    '```',
+    '',
+    `/table — ${escape('season standings')}`,
+    `/gw — ${escape('a gameweek, latest if omitted')}`,
+    `/month — ${escape('a month, current if omitted')}`,
+    `/winners — ${escape('weekly and monthly winners')}`,
+    `/fixtures — ${escape('fixtures and live scores')}`,
+    `/next — ${escape('next deadline')}`,
   ].join('\n');
 }
 
@@ -150,7 +205,14 @@ export function formatSettled(data: LeaderboardView, event: number): string {
       ? `${shared.map((r) => r.name).join(' and ')} share Gameweek ${event}`
       : `${winner.name} wins Gameweek ${event}`;
 
-  return [`*${escape(headline)}*`, escape(`${winner.c0} points`), rowsToBlock(view.rows, data.siteUrl)].join('\n');
+  return [
+    `*${escape(headline)}*`,
+    escape(`${winner.c0} points`),
+    '',
+    ...rowsToLines(view),
+    '',
+    `[Full table](${data.siteUrl})`,
+  ].join('\n');
 }
 
 /** Telegram rejects over-long messages outright, so never send one. */

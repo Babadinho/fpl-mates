@@ -48,10 +48,12 @@ function view(over: Partial<LeaderboardView> = {}): LeaderboardView {
 }
 
 describe('formatting', () => {
-  it('renders a gameweek as a fixed-width block', () => {
+  it('renders a gameweek without a code fence', () => {
+    // A fence makes Telegram render a full-width COPY CODE bar on mobile,
+    // which swamps a short table.
     const out = formatGameweek(view(), 5);
     expect(out).toContain('Alice');
-    expect(out).toContain('```');
+    expect(out).not.toContain('```');
   });
 
   it('explains itself when a gameweek does not exist', () => {
@@ -122,8 +124,8 @@ describe('formatting', () => {
     expect(out.length).toBeLessThan(MAX_MESSAGE);
   });
 
-  it('says live scores are off when they are', () => {
-    expect(formatFixtures(view())).toMatch(/switched off/);
+  it('says so plainly when there are no fixtures', () => {
+    expect(formatFixtures(view())).toMatch(/No fixtures/);
   });
 
   it('lists the commands', () => {

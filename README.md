@@ -110,12 +110,22 @@ gameweek is confirmed. Free, and setup takes about a minute.
    prompts. It gives you a token — that is `TELEGRAM_BOT_TOKEN`.
 2. Add the bot to your group. To find the chat id, send any message there, open
    `https://api.telegram.org/bot<TOKEN>/getUpdates` and read
-   `result[0].message.chat.id`. Group ids are negative.
+   `result[0].message.chat.id`. A group id is negative, a private chat is
+   positive — using the wrong sign returns "chat not found", which reads like a
+   permissions problem. `getUpdates` returns nothing once a webhook is set, so
+   do this before step 3.
 3. Register the webhook so commands work:
 
    ```bash
-   curl "https://api.telegram.org/bot<TOKEN>/setWebhook"      -d "url=https://your-site/api/telegram"      -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://your-site/api/telegram&secret_token=<SECRET>"
    ```
+
+   Omit `secret_token` if you have not set `TELEGRAM_WEBHOOK_SECRET`; if the two
+   ever disagree, every command silently stops working. `getWebhookInfo` reports
+   the reason in `last_error_message`.
+
+   The secret may only contain `A-Z a-z 0-9 _ -`, so a bot token cannot be used
+   as one — and should not be, since it is a separate credential.
 
 | Command | Returns |
 |---|---|
@@ -126,6 +136,21 @@ gameweek is confirmed. Free, and setup takes about a minute.
 | `/fixtures` | fixtures and live scores |
 | `/next` | next deadline |
 | `/help` | the list |
+
+The bot also answers `/season`, `/gameweek`, `/monthly` and `/live` as aliases.
+
+To get Telegram's autocomplete menu, send `/setcommands` to BotFather, pick your
+bot, and paste:
+
+```
+table - season standings
+gw - a gameweek, latest if omitted
+month - a month, current if omitted
+winners - weekly and monthly winners
+fixtures - fixtures and live scores
+next - next deadline
+help - list the commands
+```
 
 Set `TELEGRAM_CHAT_ID` and the bot also announces each gameweek as it is
 confirmed — the same moment the winner is recorded, guarded so a reprocessed
