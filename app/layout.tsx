@@ -39,8 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { leagueName, seasonLabel } = await getLeaderboardView();
   const cfg = getConfig();
   const title = `${leagueName} · ${seasonLabel}`;
-  const description =
-    'Weekly, monthly and season tables for a Fantasy Premier League mini-league.';
+  const description = cfg.site.description;
 
   return {
     // Needed to make the generated share image an absolute URL; without it

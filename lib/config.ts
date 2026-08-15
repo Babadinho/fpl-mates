@@ -155,6 +155,14 @@ const schema = z.object({
     .optional()
     .transform((v) => (v?.trim() ? v.trim() : 'Fantasy Premier League')),
 
+  /** Shown under the title in link previews and search results. */
+  SITE_DESCRIPTION: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v?.trim() ? v.trim() : "Compete with your mates. The mini-league competitions FPL doesn't run.",
+    ),
+
   // ---- Scoring rules -----------------------------------------------------
   TIMEZONE: timezone,
   TIEBREAK_ORDER: tiebreakOrder,
@@ -291,6 +299,7 @@ function load() {
       leagueName: env.LEAGUE_DISPLAY_NAME, // undefined = fall back to the API's league.name
       seasonLabel: env.SEASON_LABEL, // undefined = derive from deadlines
       eyebrow: env.SITE_EYEBROW,
+      description: env.SITE_DESCRIPTION,
       url: env.SITE_URL,
       allowIndexing: env.ALLOW_INDEXING,
       passcode: env.LEAGUE_PASSCODE,

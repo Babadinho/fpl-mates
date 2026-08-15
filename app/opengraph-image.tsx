@@ -64,7 +64,7 @@ export default async function OpengraphImage() {
         </div>
 
         <div style={{ fontFamily: 'mono', fontSize: 26, opacity: 0.75 }}>
-          Weekly · Monthly · Season · Winners
+          Win the week · Win the month · Win the season
         </div>
       </div>
     ),
