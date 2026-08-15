@@ -252,7 +252,16 @@ The cascade clears `gw_scores`, `entry_picks` and both winners tables.
 `processed_at` is what makes the poller score it all again. Then `pnpm sync`.
 
 Before the season this matters much less: with nothing scored and no winners
-declared, a sync alone is enough.
+declared, a sync alone is enough:
+
+1. Change `FPL_LEAGUE_ID`, then **redeploy** — a Vercel deployment carries the
+   values it was built with, so the change does nothing until then.
+2. Force a sync rather than waiting for the hour: **GitHub → Actions → "Poll
+   FPL" → Run workflow**, or the `curl` under [Forcing a sync](#forcing-a-sync).
+
+The new members appear and the old ones drop out on that run, since anyone
+absent from the roster is marked inactive. Their rows stay in the database but
+no longer count.
 
 ### Switching mid-season
 
