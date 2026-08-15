@@ -18,7 +18,12 @@ export const alt = 'League leaderboard';
 
 export default async function OpengraphImage() {
   const cfg = getConfig();
-  const { leagueName, seasonLabel } = await getLeaderboardView();
+  const { leagueName, seasonLabel, season } = await getLeaderboardView();
+
+  // A league of one is nobody's idea of a boast, and zero reads as broken.
+  const managers = season.rows.length;
+  const subtitle =
+    managers > 1 ? `${seasonLabel} · ${managers} managers` : seasonLabel;
 
   const plate = toRasterSafeColor(cfg.theme.light.accent);
   const dot = toRasterSafeColor(cfg.theme.light.pop);
@@ -54,7 +59,7 @@ export default async function OpengraphImage() {
             {leagueName.toUpperCase()}
           </div>
           <div style={{ fontFamily: 'mono', fontSize: 30, letterSpacing: 4, opacity: 0.85, marginTop: 18 }}>
-            {seasonLabel}
+            {subtitle}
           </div>
         </div>
 
