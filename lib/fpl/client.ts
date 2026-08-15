@@ -30,7 +30,18 @@ export class FplApiError extends Error {
 }
 
 const RETRYABLE = new Set([429, 403, 500, 502, 503, 504]);
-const MAX_ATTEMPTS = 4;
+
+/**
+ * The retry budget has to fit inside the poller's maxDuration of 60s, or a
+ * hung upstream takes the whole function down with it and the run is killed
+ * before it can even record why.
+ *
+ * Worst case here is 3 x 10s of waiting plus 1s + 2s of backoff — 33s, leaving
+ * room for the database writes either side. FPL's CDN answers refusals fast;
+ * it is the silent hangs that eat the clock.
+ */
+const REQUEST_TIMEOUT_MS = 10_000;
+const MAX_ATTEMPTS = 3;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -53,7 +64,7 @@ async function getJson(path: string, revalidate?: number): Promise<unknown> {
       // everything else must be fresh, since the poller decides winners on it.
       const res = await fetch(url, {
         headers: { 'User-Agent': cfg.fpl.userAgent, Accept: 'application/json' },
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         ...(revalidate ? { next: { revalidate } } : { cache: 'no-store' as const }),
       });
 
