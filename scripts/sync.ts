@@ -15,6 +15,9 @@ async function main() {
   console.log(`  league    ${result.leagueName}`);
   console.log(`  gameweeks ${result.gameweeks}`);
   console.log(`  members   ${result.members}`);
+  if (result.deactivated > 0) {
+    console.log(`  left      ${result.deactivated} no longer in the league`);
+  }
 }
 
 main().catch((err) => {

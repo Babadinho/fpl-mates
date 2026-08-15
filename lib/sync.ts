@@ -5,7 +5,7 @@
  * is exactly what the hourly cron does. Scoring is deliberately NOT here; it
  * gates on `data_checked` and lands in the poller.
  */
-import { sql } from 'drizzle-orm';
+import { and, eq, notInArray, sql } from 'drizzle-orm';
 import { getConfig } from './config';
 import { getDb } from './db';
 import { gameweeks, league, managers } from './db/schema';
@@ -16,6 +16,8 @@ export interface SyncResult {
   gameweeks: number;
   members: number;
   leagueName: string;
+  /** Members who have left the league since the last sync. */
+  deactivated: number;
 }
 
 /** Mirrors bootstrap-static's 38 events, assigning each to a calendar month. */
@@ -74,8 +76,11 @@ export async function syncMembers(deadlines: { event: number; deadlineTime: Date
       },
     });
 
+  // An empty roster is never taken as "everybody left" — before the first
+  // deadline the API can legitimately return nothing, and deactivating the
+  // whole league on one odd response is not a recoverable mistake.
   if (roster.members.length === 0) {
-    return { leagueName: roster.leagueName, count: 0 };
+    return { leagueName: roster.leagueName, count: 0, deactivated: 0 };
   }
 
   const rows = roster.members.map((m) => ({
@@ -101,12 +106,32 @@ export async function syncMembers(deadlines: { event: number; deadlineTime: Date
       },
     });
 
-  return { leagueName: roster.leagueName, count: rows.length };
+  // Anyone absent from the roster has left, so stop counting them. Their rows
+  // are kept: a gameweek they won stays won. The roster is fully paginated and
+  // a failed fetch throws long before this, so absence here is real.
+  //
+  // This also covers pointing an existing database at a different league,
+  // though a fresh database is the better answer — see the README.
+  const deactivated = await db
+    .update(managers)
+    .set({ active: false })
+    .where(
+      and(
+        eq(managers.active, true),
+        notInArray(
+          managers.entryId,
+          rows.map((r) => r.entryId),
+        ),
+      ),
+    )
+    .returning({ entryId: managers.entryId });
+
+  return { leagueName: roster.leagueName, count: rows.length, deactivated: deactivated.length };
 }
 
 /** Everything that is safe to refresh regardless of gameweek state. */
 export async function syncReferenceData(): Promise<SyncResult> {
   const events = await syncGameweeks();
-  const { leagueName, count } = await syncMembers(events);
-  return { gameweeks: events.length, members: count, leagueName };
+  const { leagueName, count, deactivated } = await syncMembers(events);
+  return { gameweeks: events.length, members: count, leagueName, deactivated };
 }

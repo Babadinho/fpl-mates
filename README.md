@@ -211,6 +211,83 @@ WhatsApp publisher.
 
 A missing optional variable turns a feature off. It never breaks the poller.
 
+### One database per league
+
+`FPL_LEAGUE_ID` is not a switch you can flip on a running instance. Only the
+`league` table is keyed by league id — managers, scores and winners are not —
+so pointing an existing database at a different league leaves the previous
+league's history in place and mixed with the new one.
+
+The sync marks departed members inactive, so they drop out of the tables on the
+next poll. What it cannot undo is the rest:
+
+- **Winners already declared** stay. `weekly_winners` is keyed by gameweek and
+  `monthly_winners` by month, neither of which changes with the league.
+- **Gameweeks already scored** are never rescored. `processed_at` marks them
+  done, so the new league's members get nothing for any gameweek that settled
+  before the change, and sit on zero while the old members carry full totals.
+
+Run a second league in a second database. A Neon branch takes seconds and costs
+nothing:
+
+```bash
+# new DATABASE_URL + new FPL_LEAGUE_ID, then
+pnpm db:migrate
+```
+
+To reuse a database anyway, wipe it rather than reconfigure it:
+
+```sql
+TRUNCATE managers, league, poll_runs RESTART IDENTITY CASCADE;
+UPDATE gameweeks SET processed_at = NULL;
+```
+
+The cascade clears `gw_scores`, `entry_picks` and both winners tables.
+`gameweeks` is FPL-wide rather than league-specific, so it stays — clearing
+`processed_at` is what makes the poller score it all again. Then `pnpm sync`.
+
+Before the season this matters much less: with nothing scored and no winners
+declared, a sync alone is enough.
+
+### Switching mid-season
+
+Once gameweeks have settled, two costs cannot be undone.
+
+**Join dates are lost.** FPL reports `joined_time` only while a manager is
+unranked, so everyone already ranked in the new league arrives without one and
+counts from Gameweek 1 — `COUNT_PREJOIN_GWS=true` behaviour whether you set it
+or not.
+
+**The bot re-announces every gameweek.** Announcements are guarded by
+`weekly_winners.posted_at`, which a wipe deletes along with the row. Rebuilding
+twelve settled gameweeks posts twelve messages to your group, seconds apart.
+
+Everything else recovers: FPL's history endpoint returns all past gameweeks, so
+scores and tables rebuild accurately. If you have to switch, the order is what
+protects you:
+
+1. New database, then `pnpm db:migrate`
+2. **Clear `TELEGRAM_CHAT_ID` and redeploy** — this is the step that prevents
+   the announcement storm, and the only one you cannot fix afterwards
+3. Change `FPL_LEAGUE_ID`, then run the poller until it has caught up
+4. Restore `TELEGRAM_CHAT_ID`
+
+Better: settle on the league before the first deadline, and run a second
+instance rather than repointing this one.
+
+### Forcing a sync
+
+The poller runs hourly, so nothing here is required — it is for when you have
+just changed configuration and do not want to wait.
+
+- **GitHub → Actions → "Poll FPL" → Run workflow.** Uses the repository
+  secrets, so nothing to type.
+- `curl -H "Authorization: Bearer $CRON_SECRET" https://your-app.vercel.app/api/poll`
+- `pnpm sync` locally, against whatever `DATABASE_URL` is in your `.env.local`.
+
+Environment variables are baked into a Vercel deployment, so changing one in
+the dashboard does nothing until the next deploy. Redeploy first, then sync.
+
 The theme is configurable end to end: set `ACCENT_COLOR` and `POP_COLOR` and the
 page, the favicon and the link-preview image all follow, because all three are
 generated from the same values.
