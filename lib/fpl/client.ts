@@ -36,12 +36,23 @@ const RETRYABLE = new Set([429, 403, 500, 502, 503, 504]);
  * hung upstream takes the whole function down with it and the run is killed
  * before it can even record why.
  *
- * Worst case here is 3 x 10s of waiting plus 1s + 2s of backoff — 33s, leaving
- * room for the database writes either side. FPL's CDN answers refusals fast;
- * it is the silent hangs that eat the clock.
+ * Refusals come back in milliseconds, so five attempts spread over 1s + 2s +
+ * 4s + 8s costs ~15s and rides out a short block — the FPL CDN 403s datacentre
+ * IPs intermittently, and giving up after three seconds turned a blip into a
+ * failed run. A genuine hang is bounded by the timeout instead: 5 x 10s plus
+ * the same backoff still lands inside the budget.
  */
 const REQUEST_TIMEOUT_MS = 10_000;
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 5;
+
+/**
+ * Backoff with jitter. Self-hosted instances poll on the same schedule, so
+ * synchronised retries would hit an already-struggling upstream together.
+ */
+function backoffMs(attempt: number): number {
+  const base = 2 ** (attempt - 1) * 1000;
+  return Math.round(base * (0.5 + Math.random()));
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -74,16 +85,16 @@ async function getJson(path: string, revalidate?: number): Promise<unknown> {
         throw new FplApiError(`FPL API returned ${res.status} for ${path}`, res.status, path);
       }
 
-      // Honour Retry-After when they send it, otherwise 1s, 2s, 4s.
+      // Honour Retry-After when they send it, otherwise jittered backoff.
       const retryAfter = Number(res.headers.get('retry-after'));
-      const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2 ** (attempt - 1) * 1000;
+      const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : backoffMs(attempt);
       lastError = new FplApiError(`FPL API returned ${res.status}`, res.status, path);
       await sleep(delay);
     } catch (err) {
       if (err instanceof FplApiError && !RETRYABLE.has(err.status ?? 0)) throw err;
       lastError = err;
       if (attempt === MAX_ATTEMPTS) break;
-      await sleep(2 ** (attempt - 1) * 1000);
+      await sleep(backoffMs(attempt));
     }
   }
 
