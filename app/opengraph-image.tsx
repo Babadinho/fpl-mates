@@ -18,12 +18,17 @@ export const alt = 'League leaderboard';
 
 export default async function OpengraphImage() {
   const cfg = getConfig();
-  const { leagueName, seasonLabel, season } = await getLeaderboardView();
+  const { leagueName, seasonLabel, season, history } = await getLeaderboardView();
 
   // A league of one is nobody's idea of a boast, and zero reads as broken.
   const managers = season.rows.length;
   const subtitle =
     managers > 1 ? `${seasonLabel} · ${managers} managers` : seasonLabel;
+
+  // history.weekly is built from settled gameweeks and newest first, so this is
+  // never a provisional winner. Absent before the season, which is why the
+  // right-hand block has to be optional rather than a fixed slot.
+  const latest = history.weekly[0];
 
   const plate = toRasterSafeColor(cfg.theme.light.accent);
   const dot = toRasterSafeColor(cfg.theme.light.pop);
@@ -54,17 +59,53 @@ export default async function OpengraphImage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontFamily: 'display', fontSize: 150, lineHeight: 1 }}>
-            {leagueName.toUpperCase()}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 60 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'display', fontSize: 150, lineHeight: 1 }}>
+              {leagueName.toUpperCase()}
+            </div>
+            <div style={{ fontFamily: 'mono', fontSize: 30, letterSpacing: 4, opacity: 0.85, marginTop: 18 }}>
+              {subtitle}
+            </div>
           </div>
-          <div style={{ fontFamily: 'mono', fontSize: 30, letterSpacing: 4, opacity: 0.85, marginTop: 18 }}>
-            {subtitle}
-          </div>
+
+          {latest ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                flexShrink: 0,
+                paddingBottom: 6,
+              }}
+            >
+              <div style={{ fontFamily: 'mono', fontSize: 22, letterSpacing: 5, opacity: 0.7 }}>
+                {`${latest.gw.replace(/\s+/g, ' ')} WINNER`}
+              </div>
+              {/* Wraps rather than truncates: the block is bottom-aligned, so a
+                  long name grows upward into empty space instead of colliding
+                  with the league name. */}
+              <div
+                style={{
+                  fontFamily: 'display',
+                  fontSize: 76,
+                  lineHeight: 1.05,
+                  marginTop: 10,
+                  maxWidth: 430,
+                  textAlign: 'right',
+                }}
+              >
+                {latest.name.toUpperCase()}
+              </div>
+              <div style={{ fontFamily: 'mono', fontSize: 30, color: dot, marginTop: 10 }}>
+                {`${latest.pts} pts`}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div style={{ fontFamily: 'mono', fontSize: 26, opacity: 0.75 }}>
-          Win the week · Win the month · Win the season
+          Weekly · Monthly · Season · Winners
         </div>
       </div>
     ),
