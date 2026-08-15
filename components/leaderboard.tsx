@@ -104,6 +104,19 @@ function Row({ row }: { row: UiRow }) {
   );
 }
 
+/** Amber while a gameweek is in play, so a provisional table reads as one. */
+function Meta({ view, nowrap = false }: { view: TableView; nowrap?: boolean }) {
+  return (
+    <div
+      className={`font-mono text-[11px] ${view.provisional ? 'text-amber' : 'text-dim'} ${
+        nowrap ? 'whitespace-nowrap' : ''
+      }`}
+    >
+      {view.meta}
+    </div>
+  );
+}
+
 function Table({
   view,
   showSearch,
@@ -132,19 +145,26 @@ function Table({
   return (
     <section className="pt-[26px]">
       {/*
-        Title and meta stack in the left column so the search sits on the same
-        row, bottom-aligned with the meta. On a phone the whole toolbar becomes
-        a column and the search goes full width.
+        With a search box, title and meta stack on the left so the box can hold
+        the right of the row. Without one the right side would be empty, so the
+        meta keeps its old place on the title's baseline.
       */}
-      <div className="flex flex-col items-stretch gap-3 pb-[18px] sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+      <div
+        className={`flex flex-col items-stretch gap-3 pb-[18px] sm:flex-row sm:justify-between sm:gap-6 ${
+          showSearch ? 'sm:items-end' : 'sm:items-baseline'
+        }`}
+      >
         <div className="flex flex-col gap-[7px]">
           <h2 className="display m-0 text-[32px] tracking-[0.02em]">{view.title}</h2>
-          <div className={`font-mono text-[11px] ${view.provisional ? 'text-amber' : 'text-dim'}`}>
-            {view.meta}
-          </div>
+          {showSearch && <Meta view={view} />}
         </div>
 
-        <div className="flex flex-col items-stretch gap-2.5 sm:items-end">
+        <div
+          className={`flex gap-2.5 ${
+            showSearch ? 'flex-col items-stretch sm:items-end' : 'items-center gap-3'
+          }`}
+        >
+          {!showSearch && <Meta view={view} nowrap />}
           {refresh && <Refresh fetchedAt={refresh.fetchedAt} intervalSeconds={refresh.intervalSeconds} />}
           {showSearch && (
             <SearchBox

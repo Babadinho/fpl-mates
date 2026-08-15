@@ -99,14 +99,21 @@ export function Preseason({
       </div>
 
       <div className="w-full pt-12">
-        {/* Meta sits under the heading, matching the tables. */}
-        <div className="flex flex-col items-stretch gap-3 pb-[18px] sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+        {/* Meta moves under the heading only when the search takes the right. */}
+        <div
+          className={`flex flex-col items-stretch gap-3 pb-[18px] sm:flex-row sm:justify-between sm:gap-6 ${
+            showSearch ? 'sm:items-end' : 'sm:items-baseline'
+          }`}
+        >
           <div className="flex flex-col gap-[7px]">
             <h3 className="display m-0 text-[28px] tracking-[0.02em]">{preseason.joined.heading}</h3>
-            <span className="font-mono text-[11px] text-dim">{preseason.joined.meta}</span>
-          </div>
-          <div className="flex flex-col items-stretch gap-2.5 sm:items-end">
             {showSearch && (
+              <span className="font-mono text-[11px] text-dim">{preseason.joined.meta}</span>
+            )}
+          </div>
+
+          {showSearch ? (
+            <div className="flex flex-col items-stretch gap-2.5 sm:items-end">
               <SearchBox
                 value={query}
                 onChange={(value) => {
@@ -115,8 +122,12 @@ export function Preseason({
                 }}
                 matches={filtered.length}
               />
-            )}
-          </div>
+            </div>
+          ) : (
+            <span className="font-mono text-[11px] whitespace-nowrap text-dim">
+              {preseason.joined.meta}
+            </span>
+          )}
         </div>
 
         <div className={`${GRID} border-b border-line px-3.5 pb-2.5`}>
