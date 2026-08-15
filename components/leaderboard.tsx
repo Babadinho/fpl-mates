@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Fixtures } from './fixtures';
 import { Refresh } from './refresh';
+import { SearchBox } from './search-box';
 import { Preseason } from './preseason';
 import { PAGE_SIZE, type LeaderboardView, type TableView, type UiRow } from '@/lib/view';
 
@@ -131,39 +132,32 @@ function Table({
   return (
     <section className="pt-[26px]">
       {/*
-        Section 10 puts the title and meta on a common baseline, which holds
-        from 640px up. On a phone they stack instead, so the display type keeps
-        its full 32px rather than shrinking to share the row.
+        Title and meta stack in the left column so the search sits on the same
+        row, bottom-aligned with the meta. On a phone the whole toolbar becomes
+        a column and the search goes full width.
       */}
-      <div className="flex flex-col items-start gap-2.5 pb-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-        <h2 className="display m-0 text-[32px] tracking-[0.02em]">{view.title}</h2>
-        <div className="flex items-center gap-3">
-          <div
-            className={`font-mono text-[11px] whitespace-nowrap ${
-              view.provisional ? 'text-amber' : 'text-dim'
-            }`}
-          >
+      <div className="flex flex-col items-stretch gap-3 pb-[18px] sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+        <div className="flex flex-col gap-[7px]">
+          <h2 className="display m-0 text-[32px] tracking-[0.02em]">{view.title}</h2>
+          <div className={`font-mono text-[11px] ${view.provisional ? 'text-amber' : 'text-dim'}`}>
             {view.meta}
           </div>
+        </div>
+
+        <div className="flex flex-col items-stretch gap-2.5 sm:items-end">
           {refresh && <Refresh fetchedAt={refresh.fetchedAt} intervalSeconds={refresh.intervalSeconds} />}
+          {showSearch && (
+            <SearchBox
+              value={query}
+              onChange={(value) => {
+                setQuery(value);
+                setPage(0);
+              }}
+              matches={rows.length}
+            />
+          )}
         </div>
       </div>
-
-      {showSearch && (
-        <div className="flex items-center gap-4 pb-4">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(0);
-            }}
-            placeholder="Search manager or team"
-            aria-label="Search manager or team"
-            className="w-full max-w-[300px] rounded-[4px] border border-line bg-panel px-3 py-2.5 font-mono text-[12px] text-ink outline-none focus:border-accent"
-          />
-        </div>
-      )}
 
       <div className={`${GRID} border-b border-line px-3.5 pb-2.5`}>
         <div className="label">#</div>

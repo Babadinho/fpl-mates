@@ -88,8 +88,3 @@ body {
   font-size: 10px;
   color: var(--dim);
 }
-
-/* WebKit renders the search field's clear button with a default cursor. */
-input[type='search']::-webkit-search-cancel-button {
-  cursor: pointer;
-}
