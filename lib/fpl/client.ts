@@ -131,7 +131,27 @@ export interface LeagueRoster {
  * Both arrays paginate independently.
  */
 export async function fetchLeagueRoster(leagueId = getConfig().leagueId): Promise<LeagueRoster> {
+  const limit = getConfig().fpl.maxLeagueMembers;
   const byEntry = new Map<number, LeagueMember>();
+
+  /**
+   * Public leagues hold tens of thousands of members, in pages of 50. Every
+   * page succeeds, so no timeout or retry ever fires: the poller pages until
+   * the platform kills it, leaving a bare invocation timeout and no record of
+   * why. Failing at a bound turns that into a message naming the cause.
+   */
+  const stopIfTooBig = () => {
+    if (byEntry.size > limit) {
+      throw new FplApiError(
+        `League ${leagueId} has more than ${limit} members. This is built for ` +
+          `private mini-leagues: every member costs a request per gameweek, so a ` +
+          `public league cannot be scored inside the poller's time budget. Check ` +
+          `FPL_LEAGUE_ID, or raise MAX_LEAGUE_MEMBERS if the league really is this big.`,
+        undefined,
+        `leagues-classic/${leagueId}/standings/`,
+      );
+    }
+  };
 
   const addRanked = (results: { entry: number; entry_name: string; player_name: string }[]) => {
     for (const r of results) {
@@ -177,6 +197,7 @@ export async function fetchLeagueRoster(leagueId = getConfig().leagueId): Promis
   const first = leagueStandingsSchema.parse(await getJson(`leagues-classic/${leagueId}/standings/`));
   addRanked(first.standings.results);
   addUnranked(first.new_entries?.results ?? []);
+  stopIfTooBig();
 
   // Extra requests only when a block actually overflows.
   let hasMoreRanked = first.standings.has_next;
@@ -185,6 +206,7 @@ export async function fetchLeagueRoster(leagueId = getConfig().leagueId): Promis
       await getJson(`leagues-classic/${leagueId}/standings/?page_standings=${page}`),
     );
     addRanked(next.standings.results);
+    stopIfTooBig();
     hasMoreRanked = next.standings.has_next;
   }
 
@@ -194,6 +216,7 @@ export async function fetchLeagueRoster(leagueId = getConfig().leagueId): Promis
       await getJson(`leagues-classic/${leagueId}/standings/?page_new_entries=${page}`),
     );
     addUnranked(next.new_entries?.results ?? []);
+    stopIfTooBig();
     hasMoreUnranked = next.new_entries?.has_next ?? false;
   }
 

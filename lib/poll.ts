@@ -17,12 +17,13 @@
  *      failed deploy — is picked up by the next one with no special path and
  *      no separate backfill script.
  */
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, lte, sql } from 'drizzle-orm';
 import { getConfig } from './config';
 import { getDb } from './db';
 import { gameweeks, gwScores, managers, monthlyWinners, pollRuns, weeklyWinners } from './db/schema';
 import { fetchEntryHistory, mapWithConcurrency } from './fpl/client';
 import { CHIP_LABELS, type FplHistoryEntry } from './fpl/schemas';
+import { warmPicks } from './live';
 import { declareWinner, monthlyTable, pointsAfterCost, weeklyTable, type ManagerRef, type ScoreRow } from './scoring/tables';
 import { syncReferenceData } from './sync';
 import { announce } from './telegram/client';
@@ -118,6 +119,8 @@ export async function runPoll(): Promise<PollResult> {
     // Cheap and idempotent, so it runs every time: picks up new members and
     // any change to deadlines or the data_checked flags.
     await syncReferenceData();
+
+    await warmPicksForKickedOffGameweek();
 
     const pending = await db
       .select()
@@ -259,6 +262,39 @@ export async function runPoll(): Promise<PollResult> {
       detail: error instanceof Error ? error.message : String(error),
       processed: [],
     });
+  }
+}
+
+/**
+ * Caches every manager's picks as soon as a gameweek kicks off.
+ *
+ * Picks are frozen at the deadline, so this is a one-off per gameweek that the
+ * live table would otherwise pay on its first page render — one request per
+ * manager, inside a single request, against a page timeout far shorter than
+ * the poller's.
+ *
+ * Deliberately not fatal: a warm cache is an optimisation, and failing here
+ * must not stop a gameweek being scored. The live table still fills its own
+ * cache on demand, exactly as before.
+ */
+async function warmPicksForKickedOffGameweek(): Promise<void> {
+  const cfg = getConfig();
+  if (!cfg.live.enabled) return;
+
+  const db = getDb();
+  const [next] = await db
+    .select()
+    .from(gameweeks)
+    .where(and(eq(gameweeks.dataChecked, false), lte(gameweeks.deadlineTime, new Date())))
+    .orderBy(asc(gameweeks.event))
+    .limit(1);
+
+  if (!next) return;
+
+  try {
+    await warmPicks(next.event);
+  } catch {
+    // Logged by nothing on purpose: the next run retries, and the page still works.
   }
 }
 

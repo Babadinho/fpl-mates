@@ -85,6 +85,11 @@ curl -H "Authorization: Bearer YOUR_CRON_SECRET" https://your-app.vercel.app/api
 `{"outcome":"skipped"}` is the healthy answer between gameweeks — it means the
 API was reachable, the database was written, and there is nothing to score yet.
 
+A `FUNCTION_INVOCATION_TIMEOUT` here almost always means `FPL_LEAGUE_ID` points
+at a public league rather than your mini-league. Those hold tens of thousands of
+members and page for minutes, so the poller refuses anything above
+`MAX_LEAGUE_MEMBERS` (1,000) instead of being killed without explanation.
+
 ### Keeping it up to date
 
 `vercel.json` runs the poller daily. **Vercel's Hobby plan rejects any cron that

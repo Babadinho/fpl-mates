@@ -175,16 +175,17 @@ The only thing that writes scores. Runs hourly; almost every run does nothing.
 ```
 1. insert poll_runs (started_at)
 2. syncReferenceData()                       ← gameweeks, members, league
-3. select gameweeks where data_checked and processed_at is null
-4. none? → outcome 'skipped', done           ← the common case
-5. fetch every member's history, concurrency-capped
-6. for each pending gameweek:
+3. warm picks for a gameweek that has kicked off
+4. select gameweeks where data_checked and processed_at is null
+5. none? → outcome 'skipped', done           ← the common case
+6. fetch every member's history, concurrency-capped
+7. for each pending gameweek:
      build rows from the histories
      upsert gw_scores
      declare the weekly winner
      mark processed_at
      declare the monthly winner if that whole month has settled
-7. update poll_runs (outcome, detail)
+8. update poll_runs (outcome, detail)
 ```
 
 ### Why it is built this way
@@ -221,6 +222,15 @@ Per hourly run: one standings request, plus `bootstrap-static` at most once per
 `BOOTSTRAP_CACHE_HOURS` (default 24; the payload is ~1.4 MB and near-static).
 The per-manager history calls fire only when a gameweek actually settles —
 roughly weekly, not hourly.
+
+Picks are the other per-manager cost, and step 3 is why the poller pays it.
+They are frozen at the deadline, so each manager is fetched once per gameweek
+and read from `entry_picks` forever after. Left to the live table, that cold
+start lands on whoever opens the page first after kickoff: one request per
+manager inside a single render, unnoticeable for a dozen members and fatal for
+several hundred, since a page route's timeout is far shorter than the poller's.
+Warming it is not fatal if it fails — the live path still fills the cache on
+demand, exactly as before.
 
 ### The route
 

@@ -56,6 +56,35 @@ so it currently never shows.
 
 ---
 
+## Deferred: leagues above ~500 members
+
+`MAX_LEAGUE_MEMBERS` refuses anything larger, because one poll run cannot score
+it. Scoring costs one request per member — there is no bulk endpoint carrying
+transfer costs, bench points and chips — so at ~150ms and concurrency 4 the 60s
+budget runs out somewhere past 1,200. A public league id, which is how this is
+usually reached by accident, pages for minutes before scoring even starts.
+
+Two ways to lift it, if a real league ever needs it.
+
+**Resumable batching.** `gw_scores` already records a row per manager per
+gameweek, so it doubles as a progress ledger: each run fetches only the members
+missing a row for the pending gameweek, and `processed_at` is set once everyone
+has one. A large league then settles across several hourly runs, and no winner
+is declared from a partial table. Perhaps thirty lines in `lib/poll.ts`.
+
+**Score from standings pages.** `leagues-classic/{id}/standings/` returns 50
+members per page with each one's gameweek total, so 10,000 members costs 200
+requests instead of 10,000. This is how the mirror apps show huge leagues
+cheaply — they display FPL's own computed table rather than deriving anything.
+The cost is what makes this app worth having: no hits, no bench points, no
+chips, so tie-breaks collapse to points and overall rank, and whether
+`event_total` is net of transfer costs needs confirming against a played
+gameweek before anything is built on it.
+
+The page itself is the other half of the problem: the view builds every table
+for every member and ships them to the browser. Beyond a few hundred that needs
+server-side pagination.
+
 ## Worth doing
 
 - **Season rollover.** `history.current` resets every August, so the 2026/27

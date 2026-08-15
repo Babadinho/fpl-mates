@@ -226,6 +226,16 @@ const schema = z.object({
   /** Parallel entry-history requests. Kept low to stay a polite client. */
   POLL_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(4),
   /**
+   * Refuse a league larger than this.
+   *
+   * 1,000 is near what one run can finish: every member costs a history
+   * request, and at roughly 150ms with POLL_CONCURRENCY 4 that is ~37s of the
+   * 60s budget. Past 2,000 the run is killed mid-flight, so a higher ceiling
+   * would be a promise the poller cannot keep. Larger leagues need resumable
+   * batching; see docs/ROADMAP.md.
+   */
+  MAX_LEAGUE_MEMBERS: z.coerce.number().int().min(1).max(10_000).default(1_000),
+  /**
    * Seconds to share one live/fixtures fetch across visitors. Without it, ten
    * people opening the page at once costs twenty upstream requests for
    * identical data.
@@ -323,6 +333,7 @@ function load() {
       baseUrl: env.FPL_BASE_URL,
       userAgent: env.FPL_USER_AGENT ?? defaultUserAgent(env.SITE_URL),
       concurrency: env.POLL_CONCURRENCY,
+      maxLeagueMembers: env.MAX_LEAGUE_MEMBERS,
       bootstrapCacheHours: env.BOOTSTRAP_CACHE_HOURS,
       liveCacheSeconds: env.LIVE_CACHE_SECONDS,
     },

@@ -232,6 +232,46 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
  * The gameweek currently worth showing live: the first one that has not
  * settled. Null once the season is over.
  */
+/**
+ * Fetches and caches picks for a gameweek that has kicked off, without scoring
+ * anything.
+ *
+ * Called by the poller so the cold start is paid unattended, on a run with a
+ * 60s budget. Otherwise it lands on whoever opens the page first after the
+ * deadline: one request per manager inside a single render, which a small
+ * league never notices and a 500-member league cannot survive.
+ *
+ * Returns how many were fetched — zero once the cache is warm, which is every
+ * run after the first.
+ */
+export async function warmPicks(event: number): Promise<number> {
+  const db = getDb();
+  const roster = await db.select().from(managers).where(eq(managers.active, true));
+  if (roster.length === 0) return 0;
+
+  const before = await db
+    .select({ entryId: entryPicks.entryId })
+    .from(entryPicks)
+    .where(eq(entryPicks.event, event));
+
+  await loadPicks(
+    roster.map((m) => ({
+      entryId: m.entryId,
+      playerName: m.playerName,
+      entryName: m.entryName,
+      joinedGw: m.joinedGw,
+    })),
+    event,
+  );
+
+  const after = await db
+    .select({ entryId: entryPicks.entryId })
+    .from(entryPicks)
+    .where(eq(entryPicks.event, event));
+
+  return after.length - before.length;
+}
+
 export async function liveGameweek(): Promise<{ event: number; deadline: Date } | null> {
   const db = getDb();
   const [next] = await db
