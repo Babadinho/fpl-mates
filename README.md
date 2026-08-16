@@ -195,12 +195,16 @@ of the season. Somebody joining at GW10 arrives with GW1–9 already on FPL's
 record; counting those would let them win a month they were not in. Set
 `COUNT_PREJOIN_GWS=true` if you would rather count everything.
 
-> **If you set this up mid-season**, the join dates of existing members are not
-> recoverable. FPL only reports a join time while a manager is unranked, so
-> anyone already in the table when you first run the poller is treated as
-> present from Gameweek 1 — which is `COUNT_PREJOIN_GWS=true` behaviour for
-> them whatever you set. Members who join *after* you start are dated
-> correctly. Starting before the season avoids this entirely.
+> **If you set this up mid-season**, every gameweek so far is backfilled on the
+> first poll — FPL's history endpoint returns the whole season, so you get the
+> weekly and monthly winners from Gameweek 1 without doing anything.
+>
+> What is *not* recoverable is join dates. FPL only reports a join time while a
+> manager is unranked, so anyone already in the table when you first run the
+> poller is treated as present from Gameweek 1 — which is
+> `COUNT_PREJOIN_GWS=true` behaviour for them whatever you set. Members who join
+> *after* you start are dated correctly. Starting before the season avoids this
+> entirely.
 
 Whatever you configure is printed underneath every table, so nobody has to read
 the source to find out how they lost.
@@ -272,19 +276,14 @@ unranked, so everyone already ranked in the new league arrives without one and
 counts from Gameweek 1 — `COUNT_PREJOIN_GWS=true` behaviour whether you set it
 or not.
 
-**The bot re-announces every gameweek.** Announcements are guarded by
-`weekly_winners.posted_at`, which a wipe deletes along with the row. Rebuilding
-twelve settled gameweeks posts twelve messages to your group, seconds apart.
-
 Everything else recovers: FPL's history endpoint returns all past gameweeks, so
-scores and tables rebuild accurately. If you have to switch, the order is what
-protects you:
+scores and tables rebuild accurately, and a run that processes several
+gameweeks at once announces only the newest — the rest are marked as posted
+without being sent, so your group does not get a dozen messages at once.
 
 1. New database, then `pnpm db:migrate`
-2. **Clear `TELEGRAM_CHAT_ID` and redeploy** — this is the step that prevents
-   the announcement storm, and the only one you cannot fix afterwards
-3. Change `FPL_LEAGUE_ID`, then run the poller until it has caught up
-4. Restore `TELEGRAM_CHAT_ID`
+2. Change `FPL_LEAGUE_ID`, then redeploy
+3. Run the poller until it has caught up
 
 Better: settle on the league before the first deadline, and run a second
 instance rather than repointing this one.

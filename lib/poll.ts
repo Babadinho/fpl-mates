@@ -17,7 +17,7 @@
  *      failed deploy — is picked up by the next one with no special path and
  *      no separate backfill script.
  */
-import { and, asc, eq, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { getConfig } from './config';
 import { getDb } from './db';
 import { gameweeks, gwScores, managers, monthlyWinners, pollRuns, weeklyWinners } from './db/schema';
@@ -242,10 +242,25 @@ export async function runPoll(): Promise<PollResult> {
         .where(eq(gameweeks.event, week.event));
 
       processed.push(week.event);
-      await announceSettled(week.event);
 
       // ---- monthly winner, only once every gameweek in the month has settled
       await declareMonthIfComplete(week.monthKey, refs, options);
+    }
+
+    // A first run backfills the whole season at once, and so does a rebuilt
+    // database. Announcing each gameweek would post a dozen messages seconds
+    // apart — so only the newest is sent, and the rest are marked as posted
+    // without sending. In normal weekly operation there is only ever one.
+    if (processed.length > 1) {
+      await db
+        .update(weeklyWinners)
+        .set({ postedAt: new Date() })
+        .where(
+          and(inArray(weeklyWinners.event, processed.slice(0, -1)), isNull(weeklyWinners.postedAt)),
+        );
+    }
+    if (processed.length > 0) {
+      await announceSettled(processed[processed.length - 1]);
     }
 
     const detail = [
