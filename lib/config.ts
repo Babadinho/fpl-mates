@@ -111,16 +111,21 @@ const schema = z.object({
   // ---- Required ----------------------------------------------------------
   // An unset variable and an empty one are the same mistake, so normalise ''
   // to undefined — otherwise z.coerce turns '' into 0 and reports "too small".
+  //
+  // Optional here and required below, unless USE_FIXTURES is on: the demo
+  // league reads neither, and the README offers that as the way to try this
+  // without a database.
   FPL_LEAGUE_ID: z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
     z.coerce
       .number({ message: 'must be the number from your mini-league URL, e.g. 123456' })
       .int('must be a whole number')
-      .positive('must be greater than zero'),
+      .positive('must be greater than zero')
+      .optional(),
   ),
   DATABASE_URL: z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
-    z.url({ message: 'is required — a Postgres connection string' }),
+    z.url({ message: 'is required — a Postgres connection string' }).optional(),
   ),
 
   // ---- Database ----------------------------------------------------------
@@ -277,6 +282,28 @@ const schema = z.object({
   WHATSAPP_ACCESS_TOKEN: z.string().min(1).optional(),
   WHATSAPP_RECIPIENT: z.string().min(1).optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().min(1).optional(),
+}).check((ctx) => {
+  // Raised here rather than in the field so it can depend on USE_FIXTURES, and
+  // still arrives through the same path — one line naming the variable.
+  if (ctx.value.USE_FIXTURES) return;
+
+  if (ctx.value.FPL_LEAGUE_ID === undefined) {
+    ctx.issues.push({
+      code: 'custom',
+      path: ['FPL_LEAGUE_ID'],
+      message: 'must be the number from your mini-league URL, e.g. 123456',
+      input: ctx.value.FPL_LEAGUE_ID,
+    });
+  }
+
+  if (ctx.value.DATABASE_URL === undefined) {
+    ctx.issues.push({
+      code: 'custom',
+      path: ['DATABASE_URL'],
+      message: 'is required — a Postgres connection string',
+      input: ctx.value.DATABASE_URL,
+    });
+  }
 });
 
 /* ----------------------------------------------------------------- export */
@@ -296,11 +323,14 @@ function load() {
   const env = parsed.data;
 
   return Object.freeze({
-    leagueId: env.FPL_LEAGUE_ID,
+    // Only ever absent in fixtures mode, which reads the checked-in league and
+    // opens no connection. Substituted rather than left optional so every
+    // consumer keeps a plain number and string.
+    leagueId: env.FPL_LEAGUE_ID ?? 0,
 
     db: {
-      url: env.DATABASE_URL,
-      migrationUrl: env.DATABASE_URL_UNPOOLED ?? env.DATABASE_URL,
+      url: env.DATABASE_URL ?? '',
+      migrationUrl: env.DATABASE_URL_UNPOOLED ?? env.DATABASE_URL ?? '',
     },
 
     site: {

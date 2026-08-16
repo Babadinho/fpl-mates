@@ -6,7 +6,18 @@ import * as schema from './schema';
 let cached: ReturnType<typeof create> | undefined;
 
 function create() {
-  return drizzle(neon(getConfig().db.url), { schema, casing: 'snake_case' });
+  const { url } = getConfig().db;
+
+  // Empty only under USE_FIXTURES, where nothing should reach the database.
+  // Saying so beats whatever the driver reports for an empty connection string.
+  if (!url) {
+    throw new Error(
+      'DATABASE_URL is not set. USE_FIXTURES renders the demo league without a ' +
+        'database, so nothing should be querying one — unset it, or set DATABASE_URL.',
+    );
+  }
+
+  return drizzle(neon(url), { schema, casing: 'snake_case' });
 }
 
 /** Lazily built so importing this module never requires a configured env. */

@@ -317,8 +317,15 @@ pnpm dev
 ```
 
 No database and no league to hand? Set `USE_FIXTURES=true` and it renders a
-deterministic demo league from `lib/fixtures/`. That is what the screenshots
-above show, and it is how the tests run without touching the live API.
+deterministic demo league from `lib/fixtures/` — twelve managers, twelve
+gameweeks scored, every winner decided. It is the one setting that makes
+`FPL_LEAGUE_ID` and `DATABASE_URL` unnecessary, since it reads neither. That is
+what the screenshots above show, and it is how the tests run without touching
+the live API.
+
+It also makes a shareable demo: deploy with `USE_FIXTURES=true`,
+`ALLOW_INDEXING=true` and no passcode, and you have a public link that shows
+what the app does without exposing a real league.
 
 ```bash
 pnpm test        # unit tests: scoring, tie-breaks, month mapping, bonus
