@@ -14,7 +14,7 @@ export function SearchBox({
   matches: number;
 }) {
   return (
-    <div className="flex w-full items-center gap-2 rounded-[4px] border border-line bg-panel px-3 py-[11px] hover:border-accent focus-within:border-accent sm:w-[250px]">
+    <div className="flex w-full items-center gap-2 border-b border-dim bg-panel px-2.5 pt-[11px] pb-2.5 hover:border-accent focus-within:border-accent sm:w-[250px]">
       <svg
         viewBox="0 0 24 24"
         fill="none"

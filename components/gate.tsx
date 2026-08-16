@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { submitPasscode, type GateState } from '@/app/actions';
 
 export function Gate({
@@ -14,6 +14,7 @@ export function Gate({
   rememberedFor: string;
 }) {
   const [state, action, pending] = useActionState<GateState, FormData>(submitPasscode, {});
+  const [shown, setShown] = useState(false);
 
   return (
     <div className="flex min-h-screen items-center justify-center p-8">
@@ -33,18 +34,29 @@ export function Gate({
         </div>
 
         <div className="flex flex-col gap-2.5">
-          <input
-            type="password"
-            name="passcode"
-            placeholder="Passcode"
-            autoFocus
-            autoComplete="current-password"
-            aria-label="Passcode"
-            aria-invalid={Boolean(state.error)}
-            className={`w-full rounded-[4px] border bg-panel px-4 py-3.5 font-mono text-[14px] tracking-[0.2em] text-ink outline-none ${
-              state.error ? 'border-danger' : 'border-line focus:border-accent'
+          <div
+            className={`flex items-center gap-3 rounded-[4px] border bg-panel px-4 py-3.5 ${
+              state.error ? 'border-danger' : 'border-line focus-within:border-accent'
             }`}
-          />
+          >
+            <input
+              type={shown ? 'text' : 'password'}
+              name="passcode"
+              placeholder="Passcode"
+              autoFocus
+              autoComplete="current-password"
+              aria-label="Passcode"
+              aria-invalid={Boolean(state.error)}
+              className="min-w-0 flex-1 appearance-none border-none bg-transparent p-0 font-mono text-[14px] tracking-[0.2em] text-ink outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShown(!shown)}
+              className="flex-none cursor-pointer appearance-none border-none bg-transparent p-0 font-mono text-[10px] tracking-[0.12em] text-dim uppercase hover:text-accent"
+            >
+              {shown ? 'Hide' : 'Show'}
+            </button>
+          </div>
           {state.error && <span className="font-mono text-[11px] text-danger">{state.error}</span>}
 
           <button
