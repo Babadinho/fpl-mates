@@ -1,9 +1,15 @@
-# Hourly trigger for the poller.
+# Quarter-hourly trigger for the poller.
 #
 # Vercel's Hobby plan limits cron to once per day, which would mean a weekly
 # winner appearing up to 24 hours after the gameweek settles. /api/poll is an
-# ordinary authenticated endpoint, so this calls it hourly instead — free, and
-# it works on any host.
+# ordinary authenticated endpoint, so this calls it every 15 minutes instead —
+# free, and it works on any host.
+#
+# Fifteen rather than sixty because of the deadline: picks are fetched one
+# request per manager, and whoever loads the page first after a deadline pays
+# that cost inside their request unless a poll has already warmed the cache. An
+# hourly schedule leaves up to an hour where a real visitor is the one waiting.
+# A run with nothing to do is one request and about a second.
 #
 # The daily cron in vercel.json is kept as a safety net: the poller processes
 # whatever is outstanding rather than only what is new, so a missed hour costs
@@ -16,9 +22,14 @@ name: Poll FPL
 
 on:
   schedule:
-    # UTC. Deliberately off the hour so self-hosted instances do not all hit
+    # UTC. Deliberately off the quarter so self-hosted instances do not all hit
     # the FPL API at the same moment.
-    - cron: '17 * * * *'
+    #
+    # Scheduled runs are free on a public repository. On a private one they
+    # bill against the monthly Actions allowance, and GitHub rounds every run
+    # up to a minute — so this schedule costs about 2,880 minutes a month
+    # against a 2,000-minute free tier. Keep a private fork on '17 * * * *'.
+    - cron: '2,17,32,47 * * * *'
   workflow_dispatch:
 
 concurrency:
