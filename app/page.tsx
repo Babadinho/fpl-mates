@@ -4,6 +4,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { hasAccess, rememberedFor } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 import { getLeaderboardView } from '@/lib/view';
+import { SOURCE_URL } from '@/lib/app';
 
 // Read fresh on each request; the poller writes on its own cadence.
 export const dynamic = 'force-dynamic';
@@ -87,6 +88,10 @@ export default async function Page() {
             {data.whatsappEnabled
               ? 'Table also posts to WhatsApp when a gameweek is final'
               : `${data.seasonLabel} · ${data.totalGameweeks} gameweeks`}
+            {' · '}
+            <a href={SOURCE_URL} target="_blank" rel="noreferrer noopener">
+              source
+            </a>
           </span>
         </footer>
       </div>

@@ -10,6 +10,7 @@
  * reach the browser as CSS variables rendered into the server HTML.
  */
 import { z } from 'zod';
+import { APP_NAME, APP_VERSION, SOURCE_URL } from './app';
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -47,9 +48,6 @@ const cssColor = (fallback: string) =>
       message: 'contains characters not valid in a CSS colour',
     });
 
-/** Software name and version. Forks that rename should change this. */
-const APP_NAME = 'fpl-mates';
-const APP_VERSION = '0.1.0';
 
 /**
  * Identifies the software AND the deployment running it, so a fork's traffic
@@ -58,7 +56,7 @@ const APP_VERSION = '0.1.0';
  */
 function defaultUserAgent(siteUrl: string): string {
   const local = siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1');
-  const contact = local ? `https://github.com/Babadinho/${APP_NAME}` : siteUrl;
+  const contact = local ? SOURCE_URL : siteUrl;
   return `${APP_NAME}/${APP_VERSION} (+${contact})`;
 }
 
