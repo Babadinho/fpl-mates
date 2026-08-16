@@ -5,7 +5,7 @@
  * is exactly what the hourly cron does. Scoring is deliberately NOT here; it
  * gates on `data_checked` and lands in the poller.
  */
-import { and, eq, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, notInArray, sql } from 'drizzle-orm';
 import { getConfig } from './config';
 import { getDb } from './db';
 import { gameweeks, league, managers } from './db/schema';
@@ -18,6 +18,8 @@ export interface SyncResult {
   leagueName: string;
   /** Members who have left the league since the last sync. */
   deactivated: number;
+  /** Why the gameweeks are stale, when bootstrap could not be fetched. */
+  degraded: string | null;
 }
 
 /** Mirrors bootstrap-static's 38 events, assigning each to a calendar month. */
@@ -131,7 +133,31 @@ export async function syncMembers(deadlines: { event: number; deadlineTime: Date
 
 /** Everything that is safe to refresh regardless of gameweek state. */
 export async function syncReferenceData(): Promise<SyncResult> {
-  const events = await syncGameweeks();
+  const db = getDb();
+  let events: { event: number; deadlineTime: Date }[];
+  let degraded: string | null = null;
+
+  try {
+    events = await syncGameweeks();
+  } catch (error) {
+    // bootstrap-static is 1.4MB and cached only in memory, so a cold start
+    // refetches it — which makes it the request most likely to be refused by
+    // FPL's CDN, and losing it would otherwise fail an entire run.
+    //
+    // The stored gameweeks are all this needs. Only `data_checked` goes stale,
+    // and the next run re-reads it minutes later; the poller asks what is
+    // outstanding rather than what changed, so nothing is missed.
+    const stored = await db
+      .select({ event: gameweeks.event, deadlineTime: gameweeks.deadlineTime })
+      .from(gameweeks)
+      .orderBy(asc(gameweeks.event));
+
+    if (stored.length === 0) throw error;
+
+    events = stored;
+    degraded = error instanceof Error ? error.message : String(error);
+  }
+
   const { leagueName, count, deactivated } = await syncMembers(events);
-  return { gameweeks: events.length, members: count, leagueName, deactivated };
+  return { gameweeks: events.length, members: count, leagueName, deactivated, degraded };
 }

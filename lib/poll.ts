@@ -118,7 +118,10 @@ export async function runPoll(): Promise<PollResult> {
   try {
     // Cheap and idempotent, so it runs every time: picks up new members and
     // any change to deadlines or the data_checked flags.
-    await syncReferenceData();
+    const sync = await syncReferenceData();
+    // Recorded rather than raised: the run went ahead on stored gameweeks, and
+    // a failure people are trained to ignore is worse than none at all.
+    const stale = sync.degraded ? ` (gameweeks stale: ${sync.degraded})` : '';
 
     await warmPicksForKickedOffGameweek();
 
@@ -131,14 +134,18 @@ export async function runPoll(): Promise<PollResult> {
     if (pending.length === 0) {
       return finish({
         outcome: 'skipped',
-        detail: 'no settled gameweeks awaiting processing',
+        detail: `no settled gameweeks awaiting processing${stale}`,
         processed: [],
       });
     }
 
     const roster = await db.select().from(managers).where(eq(managers.active, true));
     if (roster.length === 0) {
-      return finish({ outcome: 'skipped', detail: 'league has no members yet', processed: [] });
+      return finish({
+        outcome: 'skipped',
+        detail: `league has no members yet${stale}`,
+        processed: [],
+      });
     }
 
     const refs: ManagerRef[] = roster.map((m) => ({
