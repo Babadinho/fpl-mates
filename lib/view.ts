@@ -538,11 +538,14 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
             'live match scores and can still change — nothing counts, and no winner is ' +
             'recorded, until FPL confirms the final points.',
           view:
-            state.started === 0
+            state.rows.length === 0
               ? null
               : {
                   title: `Gameweek ${nextWeek.event}`,
-                  meta: `In play · ${state.started} of ${state.total} fixtures started · provisional`,
+                  meta:
+                    state.started === 0
+                      ? `Teams locked · ${state.total} fixtures to play`
+                      : `In play · ${state.started} of ${state.total} fixtures started · provisional`,
                   headers: ['Points', 'Est. bonus', 'Hits'],
                   note:
                     'Provisional. Bonus is estimated from live match scores and can still ' +
@@ -563,6 +566,8 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   }
 
   const liveInPlay = live?.inPlay === true && live.view !== null;
+  /** Deadline gone, no ball kicked: squads are frozen and the table is level. */
+  const liveLocked = live?.view != null && live.started === 0;
 
   return {
     live,
@@ -609,7 +614,12 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     monthly,
     season,
     history,
-    preseason: seasonStarted ? null : buildPreseason(source, nextWeek, tz),
+    // Stands down once the first ball is kicked, not once a gameweek settles:
+    // otherwise the live table stays hidden behind the joined list for the
+    // whole of Gameweek 1. `live.view` is null until a fixture starts and then
+    // holds for the rest of the gameweek, unlike `inPlay`, which goes false
+    // between match days.
+    preseason: seasonStarted || live?.view ? null : buildPreseason(source, nextWeek, tz),
     whatsappEnabled: cfg.whatsapp !== null,
     totalGameweeks: source.weeks.length,
   };

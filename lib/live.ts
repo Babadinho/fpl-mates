@@ -142,7 +142,18 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
   const started = fixtures.filter((f) => f.started).length;
   const finished = fixtures.filter((f) => f.finished).length;
 
-  if (started === 0) {
+  // Before the deadline there is nothing to show: squads are still being
+  // edited, so a table would rank teams nobody has committed to. After it,
+  // every other FPL app shows the gameweek at zero — picks are frozen, and a
+  // level table is the honest state of play.
+  const [week] = await db
+    .select({ deadline: gameweeks.deadlineTime })
+    .from(gameweeks)
+    .where(eq(gameweeks.event, event))
+    .limit(1);
+  const locked = week !== undefined && week.deadline.getTime() <= fetchedAt.getTime();
+
+  if (started === 0 && !locked) {
     return {
       event,
       fetchedAt,

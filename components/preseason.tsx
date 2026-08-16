@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { PAGE_SIZE, type LeaderboardView } from '@/lib/view';
 import { SearchBox } from './search-box';
 
+/** Returned once the deadline has passed, so the caller can say so. */
+export const EXPIRED = 'expired';
+
 /** Counts down to the first deadline. Null until mounted, so SSR matches. */
 function useCountdown(iso: string | null) {
   const [now, setNow] = useState<number | null>(null);
@@ -16,7 +19,9 @@ function useCountdown(iso: string | null) {
 
   if (!iso || now === null) return null;
 
-  const ms = Math.max(0, new Date(iso).getTime() - now);
+  const ms = new Date(iso).getTime() - now;
+  if (ms <= 0) return EXPIRED;
+
   const pad = (n: number) => String(n).padStart(2, '0');
   const days = Math.floor(ms / 86_400_000);
   const hours = Math.floor(ms / 3_600_000) % 24;
@@ -90,8 +95,17 @@ export function Preseason({
       <div className="flex w-fit flex-col items-start gap-3.5">
         <span className="label">{preseason.label}</span>
         <h2 className="display m-0 text-[44px] tracking-[0.02em]">{preseason.title}</h2>
+        {/*
+          Between the deadline and the first kickoff there is nothing to rank,
+          so this section still stands — but a countdown of zeros reads as a
+          stuck clock rather than a passed deadline.
+        */}
         <span className="font-mono text-[13px] text-accent">
-          {countdown ? `${countdown} to the Gameweek 1 deadline` : 'Counting down to Gameweek 1'}
+          {countdown === null
+            ? 'Counting down to Gameweek 1'
+            : countdown === EXPIRED
+              ? 'Teams are locked. Scores appear at the first kickoff.'
+              : `${countdown} to the Gameweek 1 deadline`}
         </span>
         <p className="mt-1.5 w-0 min-w-full text-[15px] leading-[1.6] text-dim">
           {preseason.note}
