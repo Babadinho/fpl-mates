@@ -32,8 +32,31 @@ export const bootstrapSchema = z.object({
   events: z.array(eventSchema).min(1),
   /** Needed for fixture short codes (ARS, BHA) and to map players to fixtures. */
   teams: z.array(z.object({ id: z.number().int(), short_name: z.string(), name: z.string() })),
-  elements: z.array(z.object({ id: z.number().int(), team: z.number().int() })),
+  elements: z.array(
+    z.object({
+      id: z.number().int(),
+      team: z.number().int(),
+      /**
+       * Surname usually, and what FPL itself shows. Carries diacritics, and a
+       * leading initial where two players share a surname — "J.Timber".
+       */
+      web_name: z.string(),
+      /** 1 GK, 2 DEF, 3 MID, 4 FWD. */
+      element_type: z.number().int(),
+    }),
+  ),
 });
+
+/**
+ * `element_type` as the label the squad view shows.
+ *
+ * A function rather than a lookup because FPL has added a type mid-season
+ * before — managers arrived as a fifth — and an unknown one should read as
+ * blank, never as "undefined".
+ */
+export function positionOf(elementType: number): string {
+  return { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' }[elementType] ?? '';
+}
 
 export type FplEvent = z.infer<typeof eventSchema>;
 
