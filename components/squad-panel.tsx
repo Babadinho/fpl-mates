@@ -128,7 +128,7 @@ export function SquadPanel({
               }`}
             >
               Gameweek {event}
-              {squad?.live ? ' · in play' : ''}
+              {squad?.live ? ' · in play' : squad?.state === 'pending' ? ' · not yet picked' : ''}
             </span>
             <h2 className="display m-0 text-[36px] leading-[0.95] tracking-[0.02em]">
               {squad?.name ?? ' '}
@@ -163,7 +163,17 @@ export function SquadPanel({
           <p className="pt-11 font-mono text-[12px] text-dim">Loading the squad…</p>
         )}
 
-        {squad?.notStarted && (
+        {squad?.state === 'pending' && (
+          <div className="flex flex-col gap-3 pt-11 pb-2">
+            <h3 className="display m-0 text-[30px] tracking-[0.02em]">No squad yet</h3>
+            <p className="m-0 max-w-[40ch] text-[15px] leading-[1.6] text-dim">
+              Squads are locked in at the Gameweek {event} deadline. Once it passes, this shows
+              the full fifteen with points, minutes and captaincy.
+            </p>
+          </div>
+        )}
+
+        {squad?.state === 'locked' && (
           <div className="flex flex-col gap-3 pt-11 pb-2">
             <h3 className="display m-0 text-[30px] tracking-[0.02em]">No points yet</h3>
             <p className="m-0 max-w-[40ch] text-[15px] leading-[1.6] text-dim">
@@ -173,7 +183,7 @@ export function SquadPanel({
           </div>
         )}
 
-        {squad && !squad.notStarted && (
+        {squad?.state === 'ready' && (
           <>
             <div className="grid grid-cols-4 gap-px border-b border-line bg-line">
               <Stat label="Gross" value={String(squad.gross)} />

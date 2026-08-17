@@ -97,7 +97,7 @@ export interface LeaderboardView {
     joined: {
       heading: string;
       meta: string;
-      rows: { num: string; name: string; team: string; joined: string; time: string }[];
+      rows: { entryId: number; num: string; name: string; team: string; joined: string; time: string }[];
     };
   } | null;
   whatsappEnabled: boolean;
@@ -293,6 +293,7 @@ function buildPreseason(
       heading: 'Managers in',
       meta: `${ordered.length} joined`,
       rows: ordered.map((m, i) => ({
+        entryId: m.entryId,
         num: String(i + 1).padStart(2, '0'),
         name: m.playerName,
         team: m.entryName,

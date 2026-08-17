@@ -37,6 +37,12 @@ export interface SquadPlayer {
 export interface SquadView {
   event: number;
   live: boolean;
+  /**
+   * `pending`  no picks yet, because the deadline has not passed.
+   * `locked`   deadline gone, no fixture kicked off, everyone on zero.
+   * `ready`    there is a squad worth showing.
+   */
+  state: 'pending' | 'locked' | 'ready';
   name: string;
   team: string;
   gross: number;
@@ -47,8 +53,6 @@ export interface SquadView {
   chip: string | null;
   xi: SquadPlayer[];
   bench: SquadPlayer[];
-  /** True once the deadline has passed but nothing has kicked off. */
-  notStarted: boolean;
 }
 
 const CHIP_NAMES: Record<string, string> = {
@@ -72,7 +76,7 @@ function fromFixtures(entryId: number, event: number): SquadView | null {
   if (!manager) return null;
 
   const score = mock.scores.find((s) => s.entryId === entryId && s.event === event);
-  if (!score) return null;
+  if (!score) return pending(manager.playerName, manager.entryName, event);
 
   const squad = mockSquad(entryId, event, score.grossPoints, score.chipUsed, score.transferCost);
 
@@ -98,9 +102,9 @@ function fromFixtures(entryId: number, event: number): SquadView | null {
     net: squad.net,
     formation: squad.formation,
     chip: squad.chip ? (CHIP_NAMES[squad.chip] ?? squad.chip) : null,
+    state: 'ready',
     xi: squad.xi.map((p, i) => toRow(p, i, false)),
     bench: squad.bench.map((p, i) => toRow(p, i, true)),
-    notStarted: false,
   };
 }
 
@@ -119,9 +123,12 @@ async function fromDatabase(entryId: number, event: number): Promise<SquadView |
       .limit(1),
   ]);
 
+  if (!manager || !week) return null;
+
   // No picks cached means the deadline has not passed, or nothing has warmed
-  // them yet. Either way there is no squad to show rather than an error.
-  if (!manager || !week || !picks) return null;
+  // them yet. The manager is still worth naming, so the panel can say what it
+  // is waiting for rather than reading as a failure.
+  if (!picks) return pending(manager.playerName, manager.entryName, event);
 
   const [bootstrap, fixtures, live] = await Promise.all([
     fetchBootstrap(),
@@ -196,13 +203,31 @@ async function fromDatabase(entryId: number, event: number): Promise<SquadView |
     net: gross - picks.transferCost,
     formation: formationOf(xi.map((p) => p.order)),
     chip: chip ? (CHIP_NAMES[chip] ?? chip) : null,
+    state: anyStarted ? 'ready' : 'locked',
     xi,
     bench,
-    notStarted: !anyStarted,
   };
 }
 
-/** Null when there is nothing to show — unknown manager, or picks not yet set. */
+/** A manager with no squad yet. Named, so the panel can explain the wait. */
+function pending(name: string, team: string, event: number): SquadView {
+  return {
+    event,
+    live: false,
+    state: 'pending',
+    name,
+    team,
+    gross: 0,
+    cost: 0,
+    net: 0,
+    formation: '',
+    chip: null,
+    xi: [],
+    bench: [],
+  };
+}
+
+/** Null only when the manager is unknown. */
 export async function getSquad(entryId: number, event: number): Promise<SquadView | null> {
   return getConfig().useFixtures ? fromFixtures(entryId, event) : fromDatabase(entryId, event);
 }

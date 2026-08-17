@@ -59,9 +59,12 @@ function PagerButton({
 export function Preseason({
   preseason,
   showSearch,
+  onOpenSquad,
 }: {
   preseason: NonNullable<LeaderboardView['preseason']>;
   showSearch: boolean;
+  /** Absent when no gameweek is known, so there is nothing a row could open. */
+  onOpenSquad?: (entryId: number) => void;
 }) {
   const countdown = useCountdown(preseason.deadline);
   const [query, setQuery] = useState('');
@@ -160,7 +163,22 @@ export function Preseason({
           visible.map((row) => (
             <div
               key={row.num + row.name}
-              className={`${GRID} items-center border-b border-hair p-3.5 transition-colors duration-[120ms] hover:bg-hover`}
+              onClick={onOpenSquad ? () => onOpenSquad(row.entryId) : undefined}
+              role={onOpenSquad ? 'button' : undefined}
+              tabIndex={onOpenSquad ? 0 : undefined}
+              onKeyDown={
+                onOpenSquad
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onOpenSquad(row.entryId);
+                      }
+                    }
+                  : undefined
+              }
+              className={`${GRID} items-center border-b border-hair p-3.5 transition-colors duration-[120ms] hover:bg-hover ${
+                onOpenSquad ? 'cursor-pointer' : ''
+              }`}
             >
               <div className="font-mono text-[13px] text-dim">{row.num}</div>
               <div className="min-w-0">

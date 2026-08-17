@@ -304,7 +304,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
    * monthly tables span several, so the newest stands in — a squad has to
    * belong to one gameweek, and the latest is the one people mean.
    */
-  const latestEvent = liveEvent ?? data.weekly.at(-1)?.event ?? null;
+  const latestEvent = liveEvent ?? data.weekly.at(-1)?.event ?? data.live?.event ?? null;
   const squadEvent = tab === 'weekly' ? event : latestEvent;
   // The gameweek in play gets a pill of its own, after the settled ones.
   const weeklyPills = [
@@ -353,7 +353,11 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
       </nav>
 
       {data.preseason && tab !== 'fixtures' ? (
-        <Preseason preseason={data.preseason} showSearch={data.showSearch} />
+        <Preseason
+          preseason={data.preseason}
+          showSearch={data.showSearch}
+          onOpenSquad={squadEvent === null ? undefined : setOpenEntry}
+        />
       ) : null}
 
       {!data.preseason && tab === 'weekly' && weeklyPills.length > 0 && (
