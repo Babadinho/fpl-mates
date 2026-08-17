@@ -102,6 +102,51 @@ players yet to kick off, others finished. This needs to be visibly provisional
 
 ---
 
+## Designing before a gameweek exists
+
+Nothing above blocks the design. The two unconfirmed items are both additive,
+so leaving a slot for each avoids a redraw:
+
+- **A swap indicator** on one starter and one bench player, if automatic
+  substitutions turn out to be reported.
+- **A detail area inside a player row**, if the per-player breakdown exists.
+
+### Real name lengths
+
+Measured from the current player list, not guessed:
+
+- 95% of names are **11 characters or fewer** — `Haaland`, `Saka`, `Palmer`.
+- The longest run to 16: `Borges Rodrigues`, `Bendito Mantato`.
+- Some carry diacritics — `Milosavljević` — so the font has to cover them.
+
+Design comfortably for 12, truncate past 16.
+
+### A real squad to draw with
+
+Actual players, a legal 3-4-3, priciest in each position:
+
+```
+ 1  GK   Raya           ARS
+ 2  DEF  Gabriel        ARS
+ 3  DEF  J.Timber       ARS
+ 4  DEF  Virgil         LIV
+ 5  MID  B.Fernandes    MUN
+ 6  MID  Saka           ARS
+ 7  MID  Palmer         CHE
+ 8  MID  Semenyo        MCI   (C)
+ 9  FWD  Haaland        MCI   (V)
+10  FWD  Isak           LIV
+11  FWD  Watkins        AVL
+     -- bench --
+12  GK   Pickford       EVE
+13  DEF  O'Reilly       MCI
+14  DEF  Saliba         ARS
+15  MID  Mbeumo         MUN
+```
+
+Note `J.Timber` and `B.Fernandes`: FPL abbreviates first names to disambiguate
+players sharing a surname, and `O'Reilly` carries an apostrophe.
+
 ## Constraints
 
 **Phones first.** The tables already fold to three columns below 640px. A
