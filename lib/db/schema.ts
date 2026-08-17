@@ -165,6 +165,19 @@ export const entryPicks = pgTable('entry_picks', {
   elementIds: integer('element_ids').array().notNull(),
   /** Parallel to elementIds: 0 benched, 1 playing, 2 captain, 3 triple captain. */
   multipliers: smallint('multipliers').array().notNull(),
+  /**
+   * Pick index of the captain and vice-captain, 1–15.
+   *
+   * Nullable because rows cached before this existed cannot be backfilled —
+   * refetching would cost a request per manager per gameweek to recover a
+   * badge. Null means unknown, and the view shows nothing rather than guessing.
+   *
+   * The captain is usually derivable from the multiplier, but not always: under
+   * Bench Boost a benched player still has one, and an automatic substitution
+   * can move it. Storing both removes the inference.
+   */
+  captainIndex: smallint('captain_index'),
+  viceIndex: smallint('vice_index'),
   /** FPL's chip name (bboost, 3xc, freehit, wildcard) or null. */
   activeChip: text('active_chip'),
   transferCost: smallint('transfer_cost').notNull().default(0),

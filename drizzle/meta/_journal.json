@@ -43,6 +43,13 @@
       "when": 1786707945343,
       "tag": "0005_weekly_winner_posted_at",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786998153991,
+      "tag": "0006_pick_captain_indexes",
+      "breakpoints": true
     }
   ]
 }

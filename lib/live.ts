@@ -76,11 +76,19 @@ async function loadPicks(refs: ManagerRef[], event: number) {
     // deadline, so this never repeats within a gameweek.
     const fetched = await mapWithConcurrency(missing, cfg.fpl.concurrency, async (manager) => {
       const picks = await fetchEntryPicks(manager.entryId, event);
+
+      // `position` is the pick slot, 1–15. Null when the flag is absent, which
+      // the schema tolerates because no response has confirmed it exists.
+      const slotOf = (match: (p: (typeof picks.picks)[number]) => boolean) =>
+        picks.picks.find(match)?.position ?? null;
+
       return {
         entryId: manager.entryId,
         event,
         elementIds: picks.picks.map((p) => p.element),
         multipliers: picks.picks.map((p) => p.multiplier),
+        captainIndex: slotOf((p) => p.is_captain),
+        viceIndex: slotOf((p) => p.is_vice_captain),
         activeChip: picks.active_chip,
         transferCost: picks.entry_history.event_transfers_cost,
       };
