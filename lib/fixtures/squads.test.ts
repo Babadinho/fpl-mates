@@ -33,6 +33,16 @@ describe('mock squads', () => {
     expect(new Set(names).size, 'nobody picked twice').toBe(15);
   });
 
+  it('never gives the armband to a goalkeeper or defender', () => {
+    for (const event of [1, 3, 7, 12]) {
+      for (const entry of [100000, 100014, 100035]) {
+        const squad = mockSquad(entry, event, 60, null, 0);
+        const captain = squad.xi.find((p) => p.isCaptain);
+        expect(['MID', 'FWD']).toContain(captain?.position);
+      }
+    }
+  });
+
   it('has exactly one captain and one vice, both starting', () => {
     for (const event of [1, 4, 9, 12]) {
       const squad = mockSquad(100014, event, 70, null, 0);

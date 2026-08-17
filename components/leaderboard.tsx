@@ -5,6 +5,7 @@ import { Fixtures } from './fixtures';
 import { Refresh } from './refresh';
 import { SearchBox } from './search-box';
 import { Preseason } from './preseason';
+import { SquadPanel } from './squad-panel';
 import { PAGE_SIZE, type LeaderboardView, type TableView, type UiRow } from '@/lib/view';
 
 type Tab = 'weekly' | 'monthly' | 'season' | 'history' | 'fixtures';
@@ -74,10 +75,25 @@ function Pill({
   );
 }
 
-function Row({ row }: { row: UiRow }) {
+function Row({ row, onOpen }: { row: UiRow; onOpen?: () => void }) {
   return (
     <div
-      className={`${GRID} items-center border-b border-hair px-3.5 py-[15px] transition-colors duration-[120ms] hover:bg-hover`}
+      onClick={onOpen}
+      role={onOpen ? 'button' : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onKeyDown={
+        onOpen
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpen();
+              }
+            }
+          : undefined
+      }
+      className={`${GRID} items-center border-b border-hair px-3.5 py-[15px] transition-colors duration-[120ms] hover:bg-hover ${
+        onOpen ? 'cursor-pointer' : ''
+      }`}
     >
       <div className="font-mono text-[13px] text-dim">{row.rank}</div>
 
@@ -121,11 +137,14 @@ function Table({
   view,
   showSearch,
   refresh,
+  onOpenSquad,
 }: {
   view: TableView;
   showSearch: boolean;
   /** Present only on the gameweek in play. */
   refresh?: { fetchedAt: string; intervalSeconds?: number };
+  /** Absent when there is no gameweek whose squad could be shown. */
+  onOpenSquad?: (entryId: number) => void;
 }) {
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
@@ -192,7 +211,13 @@ function Table({
           {q ? `No manager matches "${query.trim()}".` : 'No scores recorded for this period.'}
         </p>
       ) : (
-        visible.map((row) => <Row key={row.entryId} row={row} />)
+        visible.map((row) => (
+          <Row
+            key={row.entryId}
+            row={row}
+            onOpen={onOpenSquad ? () => onOpenSquad(row.entryId) : undefined}
+          />
+        ))
       )}
 
       {paged && (
@@ -268,8 +293,19 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
   const [tab, setTab] = useState<Tab>('weekly');
   const [event, setEvent] = useState(() => data.weekly.at(-1)?.event ?? 1);
   const [monthKey, setMonthKey] = useState(() => data.monthly.at(-1)?.key ?? '');
+  const [openEntry, setOpenEntry] = useState<number | null>(null);
 
   const liveEvent = data.live?.view ? data.live.event : null;
+
+  /**
+   * Which gameweek's squad a row opens.
+   *
+   * On the weekly tab it is whichever gameweek is being read. The season and
+   * monthly tables span several, so the newest stands in — a squad has to
+   * belong to one gameweek, and the latest is the one people mean.
+   */
+  const latestEvent = liveEvent ?? data.weekly.at(-1)?.event ?? null;
+  const squadEvent = tab === 'weekly' ? event : latestEvent;
   // The gameweek in play gets a pill of its own, after the settled ones.
   const weeklyPills = [
     ...data.weekly.map((w) => ({ event: w.event, label: w.label })),
@@ -356,6 +392,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
           view={weekView}
           showSearch={data.showSearch}
           refresh={liveEvent !== null && event === liveEvent ? liveRefresh : undefined}
+          onOpenSquad={squadEvent === null ? undefined : setOpenEntry}
         />
       )}
       {!data.preseason && tab === 'monthly' && monthView && (
@@ -364,6 +401,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
           view={monthView}
           showSearch={data.showSearch}
           refresh={monthView.provisional ? liveRefresh : undefined}
+          onOpenSquad={squadEvent === null ? undefined : setOpenEntry}
         />
       )}
       {!data.preseason && tab === 'season' && (
@@ -372,9 +410,14 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
           view={data.season}
           showSearch={data.showSearch}
           refresh={data.season.provisional ? liveRefresh : undefined}
+          onOpenSquad={squadEvent === null ? undefined : setOpenEntry}
         />
       )}
       {!data.preseason && tab === 'history' && <History history={data.history} />}
+
+      {openEntry !== null && squadEvent !== null && (
+        <SquadPanel entryId={openEntry} event={squadEvent} onClose={() => setOpenEntry(null)} />
+      )}
       {tab === 'fixtures' && data.live && (
         <Fixtures live={data.live} refreshSeconds={data.refreshSeconds} />
       )}

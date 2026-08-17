@@ -152,11 +152,16 @@ export function mockSquad(
     ...drawBy('FWD', 1, taken, random),
   ];
 
-  // Captain and vice are always outfield starters, as they almost always are.
-  const outfield = starters.map((_, i) => i).filter((i) => i > 0);
-  const captainAt = outfield[Math.floor(random() * outfield.length)];
-  let viceAt = outfield[Math.floor(random() * outfield.length)];
-  if (viceAt === captainAt) viceAt = outfield[(outfield.indexOf(captainAt) + 1) % outfield.length];
+  // Captain and vice come from midfield or attack. Anyone who plays FPL would
+  // notice a defender wearing the armband, and this data is shown publicly.
+  const attacking = starters
+    .map((entry, i) => [entry, i] as const)
+    .filter(([entry]) => entry[2] === 'MID' || entry[2] === 'FWD')
+    .map(([, i]) => i);
+
+  const captainAt = attacking[Math.floor(random() * attacking.length)];
+  let viceAt = attacking[Math.floor(random() * attacking.length)];
+  if (viceAt === captainAt) viceAt = attacking[(attacking.indexOf(captainAt) + 1) % attacking.length];
 
   const benchBoost = chip === 'BB';
   const tripleCaptain = chip === 'TC';
