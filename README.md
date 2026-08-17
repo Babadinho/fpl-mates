@@ -76,6 +76,20 @@ cp .env.example .env.local     # fill in the same values
 pnpm db:migrate
 ```
 
+**Migrations do not run on deploy**, here or afterwards — the build is just
+`next build`, and two Vercel builds finishing at once would race each other.
+So whenever an update adds a column, run it yourself against production before
+the new code goes live:
+
+```bash
+DATABASE_URL_UNPOOLED="<your direct Neon string>" pnpm db:migrate
+```
+
+Shell variables win over `.env.local`, so this needs no file edits, and
+drizzle skips migrations already applied — running it again is free. Migrating
+before deploying is the safe order: new columns are ignored by old code, while
+new code writing to columns that do not exist yet will fail.
+
 ### 5. Check it works
 
 ```bash
