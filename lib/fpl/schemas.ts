@@ -1,10 +1,16 @@
 /**
  * Zod schemas for every FPL API response we consume.
  *
- * Field names have changed between seasons
- * before, and a silently-defaulted zero would corrupt a monthly table. Every
- * field we actually use is required here, so drift fails loudly at the
- * boundary instead of quietly halfway through a scoring query.
+ * Field names have changed between seasons before, and a silently-defaulted
+ * zero would corrupt a monthly table. So the rule is what a missing field
+ * would cost:
+ *
+ *   Required — anything a winner is decided on. Drift fails loudly at the
+ *   boundary rather than quietly halfway through a scoring query, and the
+ *   poller records the error for the next run to retry.
+ *
+ *   Defaulted — anything that only decorates, or that nothing reads. A
+ *   missing captain badge is not worth a failed run.
  *
  * Unknown extra fields are stripped, not rejected — the API adds keys often
  * and that is never our problem.
@@ -114,16 +120,26 @@ export const leagueStandingsSchema = z.object({
 
 /* ------------------------------------------------------------- history */
 
+/**
+ * One gameweek from a manager's season.
+ *
+ * Everything a winner is decided on stays required. A default would turn a
+ * changed API into a quietly wrong table, and a wrong weekly winner is far
+ * harder to walk back than a failed run — the poller records the error and
+ * the next run retries.
+ *
+ * Fields nothing reads are tolerated, so their absence cannot fail a run.
+ */
 export const historyEntrySchema = z.object({
   event: z.number().int().min(1).max(38),
   /** GROSS points, before transfer hits. The most-mishandled field. */
   points: z.number().int(),
-  total_points: z.number().int(),
   /** Hits taken, as a POSITIVE number. Subtract it. */
   event_transfers_cost: z.number().int(),
-  event_transfers: z.number().int(),
   points_on_bench: z.number().int(),
   overall_rank: z.number().int().nullable(),
+  total_points: z.number().int().default(0),
+  event_transfers: z.number().int().default(0),
 });
 
 export const chipPlaySchema = z.object({
@@ -182,10 +198,15 @@ export type FplFixture = z.infer<typeof fixtureSchema>;
 export const liveElementSchema = z.object({
   id: z.number().int(),
   stats: z.object({
+    // Live points themselves stay required: showing a league of zeros would be
+    // worse than showing no live table, and the caller already falls back to
+    // the settled tables when this throws.
     minutes: z.number().int(),
     total_points: z.number().int(),
-    bps: z.number().int(),
-    bonus: z.number().int(),
+    // Provisional bonus only. Losing it costs an estimate that is labelled an
+    // estimate, so it degrades rather than misleads.
+    bps: z.number().int().default(0),
+    bonus: z.number().int().default(0),
   }),
 });
 
@@ -202,8 +223,11 @@ export const pickSchema = z.object({
   position: z.number().int(),
   /** 0 on the bench, 1 normally, 2 for captain, 3 under Triple Captain. */
   multiplier: z.number().int(),
-  is_captain: z.boolean(),
-  is_vice_captain: z.boolean(),
+  // Badges in the squad view, and never verified against a real response —
+  // the endpoint returns nothing until a deadline passes. The multiplier
+  // already identifies the captain, so a default costs a badge, not a score.
+  is_captain: z.boolean().default(false),
+  is_vice_captain: z.boolean().default(false),
 });
 
 export const entryPicksSchema = z.object({
