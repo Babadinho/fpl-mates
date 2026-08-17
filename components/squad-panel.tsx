@@ -216,10 +216,11 @@ export function SquadPanel({
 
         {squad?.state === 'pending' && (
           <div className="flex flex-col gap-3 pt-11 pb-2">
-            <h3 className="display m-0 text-[30px] tracking-[0.02em]">No squad yet</h3>
+            <h3 className="display m-0 text-[30px] tracking-[0.02em]">Not public yet</h3>
             <p className="m-0 max-w-[40ch] text-[15px] leading-[1.6] text-dim">
-              Squads are locked in at the Gameweek {event} deadline. Once it passes, this shows
-              the full fifteen with points, minutes and captaincy.
+              Teams can still be changed until the Gameweek {event} deadline, and FPL keeps them
+              private until then — even from your own league. This shows the full fifteen once it
+              passes.
             </p>
           </div>
         )}

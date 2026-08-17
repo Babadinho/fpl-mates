@@ -62,6 +62,13 @@ confirmed to exist, returns an array, one request covers a whole season.
 with a bench player once a gameweek ends, which changes what the final XI was.
 Believed to be in the picks response; not read today.
 
+**Anyone's squad before a deadline.** Teams exist and are edited right up to
+the deadline, but FPL keeps them private until it passes — `entry/{id}/event/
+{n}/picks/` answers `{"detail":"Not found."}` even for your own entry. The
+authenticated `my-team/{id}/` endpoint does return a draft, but only for the
+manager who is logged in, so it cannot show a league. Apps that display your
+prospective team are signed in as you.
+
 **Per-player points breakdown** — *unconfirmed*. The live endpoint is thought to
 carry an `explain` field itemising each player's points — minutes, goals,
 assists, clean sheet, bonus.
