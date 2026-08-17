@@ -111,14 +111,14 @@ export function SquadPanel({
       <div
         onClick={onClose}
         aria-hidden="true"
-        className="absolute inset-0 bg-[rgba(12,8,20,0.44)]"
+        className="fpl-scrim absolute inset-0 bg-[rgba(12,8,20,0.44)]"
       />
 
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="Manager squad"
-        className="relative h-full w-full max-w-full overflow-y-auto border-l border-line bg-bg px-[18px] pt-[22px] pb-10 sm:w-[460px] sm:px-[30px] sm:pt-[30px] sm:pb-[46px]"
+        className="fpl-panel relative h-full w-full max-w-full overflow-y-auto overscroll-contain border-l border-line bg-bg px-[18px] pt-[22px] pb-10 shadow-[-24px_0_60px_rgba(12,8,20,0.18)] will-change-transform sm:w-[460px] sm:px-[30px] sm:pt-[30px] sm:pb-[46px]"
       >
         <div className="flex items-start justify-between gap-5 border-b border-line pb-[22px]">
           <div className="flex min-w-0 flex-col gap-[7px]">

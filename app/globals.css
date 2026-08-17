@@ -64,6 +64,41 @@
   }
 }
 
+@keyframes fplfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fplslide {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.fpl-scrim {
+  animation: fplfade 220ms ease both;
+}
+
+/* Eases out fast then settles, so the panel arrives rather than snapping. */
+.fpl-panel {
+  animation: fplslide 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* Motion sensitivity: still appear, but without travelling across the screen. */
+@media (prefers-reduced-motion: reduce) {
+  .fpl-scrim,
+  .fpl-panel {
+    animation: fplfade 120ms ease both;
+  }
+}
+
 body {
   background: var(--bg);
   color: var(--ink);
