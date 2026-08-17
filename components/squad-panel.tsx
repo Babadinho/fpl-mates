@@ -50,6 +50,54 @@ function Row({ player }: { player: SquadPlayer }) {
   );
 }
 
+function Skeleton() {
+  const rows = [1, 2, 3, 4, 5, 6, 7, 8];
+
+  return (
+    <>
+      <div className="flex items-center gap-2.5 pt-6 pb-5">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="block h-[13px] w-[13px] animate-[fplspin_900ms_linear_infinite] text-dim"
+        >
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+          <polyline points="21 4 21 10 15 10" />
+        </svg>
+        <span className="font-mono text-[11px] tracking-[0.1em] text-dim uppercase">
+          Loading squad
+        </span>
+      </div>
+
+      {/* Same four columns as the real strip, so it does not shift on arrival. */}
+      <div className="grid grid-cols-4 gap-px border-b border-line bg-line">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex flex-col gap-[9px] bg-bg py-4 pr-3">
+            <div className="fpl-skeleton h-2 w-3/5 bg-hair" />
+            <div className="fpl-skeleton h-[15px] w-[46%] bg-line" />
+          </div>
+        ))}
+      </div>
+
+      {rows.map((i) => (
+        <div
+          key={i}
+          className="grid grid-cols-[34px_minmax(0,1fr)_62px_52px] items-center gap-2.5 border-b border-hair py-3.5"
+        >
+          <div className="fpl-skeleton h-2 bg-hair" />
+          <div className="fpl-skeleton h-[11px] w-[62%] bg-line" />
+          <div className="fpl-skeleton h-2 w-[70%] bg-hair" />
+          <div className="fpl-skeleton h-[11px] w-3/5 justify-self-end bg-hair" />
+        </div>
+      ))}
+    </>
+  );
+}
+
 function Stat({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="flex flex-col gap-1.5 bg-bg py-4 pl-3 first:pl-0">
@@ -62,10 +110,15 @@ function Stat({ label, value, accent = false }: { label: string; value: string; 
 export function SquadPanel({
   entryId,
   event,
+  name,
+  team,
   onClose,
 }: {
   entryId: number;
   event: number;
+  /** Known from the row already, so the header never renders empty. */
+  name: string;
+  team: string;
   onClose: () => void;
 }) {
   const [squad, setSquad] = useState<SquadView | null>(null);
@@ -131,9 +184,9 @@ export function SquadPanel({
               {squad?.live ? ' · in play' : squad?.state === 'pending' ? ' · not yet picked' : ''}
             </span>
             <h2 className="display m-0 text-[36px] leading-[0.95] tracking-[0.02em]">
-              {squad?.name ?? ' '}
+              {squad?.name ?? name}
             </h2>
-            <span className="truncate font-mono text-[12px] text-dim">{squad?.team ?? ''}</span>
+            <span className="truncate font-mono text-[12px] text-dim">{squad?.team ?? team}</span>
           </div>
 
           <button
@@ -159,9 +212,7 @@ export function SquadPanel({
 
         {error && <p className="pt-11 font-mono text-[12px] text-dim">{error}</p>}
 
-        {!squad && !error && (
-          <p className="pt-11 font-mono text-[12px] text-dim">Loading the squad…</p>
-        )}
+        {!squad && !error && <Skeleton />}
 
         {squad?.state === 'pending' && (
           <div className="flex flex-col gap-3 pt-11 pb-2">

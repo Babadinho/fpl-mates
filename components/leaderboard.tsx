@@ -144,7 +144,7 @@ function Table({
   /** Present only on the gameweek in play. */
   refresh?: { fetchedAt: string; intervalSeconds?: number };
   /** Absent when there is no gameweek whose squad could be shown. */
-  onOpenSquad?: (entryId: number) => void;
+  onOpenSquad?: (manager: { entryId: number; name: string; team: string }) => void;
 }) {
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
@@ -215,7 +215,11 @@ function Table({
           <Row
             key={row.entryId}
             row={row}
-            onOpen={onOpenSquad ? () => onOpenSquad(row.entryId) : undefined}
+            onOpen={
+              onOpenSquad
+                ? () => onOpenSquad({ entryId: row.entryId, name: row.name, team: row.team })
+                : undefined
+            }
           />
         ))
       )}
@@ -293,7 +297,8 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
   const [tab, setTab] = useState<Tab>('weekly');
   const [event, setEvent] = useState(() => data.weekly.at(-1)?.event ?? 1);
   const [monthKey, setMonthKey] = useState(() => data.monthly.at(-1)?.key ?? '');
-  const [openEntry, setOpenEntry] = useState<number | null>(null);
+  // Name and team ride along so the panel header is right on the first frame.
+  const [open, setOpen] = useState<{ entryId: number; name: string; team: string } | null>(null);
 
   const liveEvent = data.live?.view ? data.live.event : null;
 
@@ -356,7 +361,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
         <Preseason
           preseason={data.preseason}
           showSearch={data.showSearch}
-          onOpenSquad={squadEvent === null ? undefined : setOpenEntry}
+          onOpenSquad={squadEvent === null ? undefined : setOpen}
         />
       ) : null}
 
@@ -396,7 +401,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
           view={weekView}
           showSearch={data.showSearch}
           refresh={liveEvent !== null && event === liveEvent ? liveRefresh : undefined}
-          onOpenSquad={squadEvent === null ? undefined : setOpenEntry}
+          onOpenSquad={squadEvent === null ? undefined : setOpen}
         />
       )}
       {!data.preseason && tab === 'monthly' && monthView && (
@@ -405,7 +410,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
           view={monthView}
           showSearch={data.showSearch}
           refresh={monthView.provisional ? liveRefresh : undefined}
-          onOpenSquad={squadEvent === null ? undefined : setOpenEntry}
+          onOpenSquad={squadEvent === null ? undefined : setOpen}
         />
       )}
       {!data.preseason && tab === 'season' && (
@@ -414,13 +419,19 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
           view={data.season}
           showSearch={data.showSearch}
           refresh={data.season.provisional ? liveRefresh : undefined}
-          onOpenSquad={squadEvent === null ? undefined : setOpenEntry}
+          onOpenSquad={squadEvent === null ? undefined : setOpen}
         />
       )}
       {!data.preseason && tab === 'history' && <History history={data.history} />}
 
-      {openEntry !== null && squadEvent !== null && (
-        <SquadPanel entryId={openEntry} event={squadEvent} onClose={() => setOpenEntry(null)} />
+      {open !== null && squadEvent !== null && (
+        <SquadPanel
+          entryId={open.entryId}
+          event={squadEvent}
+          name={open.name}
+          team={open.team}
+          onClose={() => setOpen(null)}
+        />
       )}
       {tab === 'fixtures' && data.live && (
         <Fixtures live={data.live} refreshSeconds={data.refreshSeconds} />

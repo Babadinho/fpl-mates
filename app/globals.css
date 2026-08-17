@@ -64,6 +64,29 @@
   }
 }
 
+@keyframes fplpulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* Placeholder bars while a squad loads. */
+.fpl-skeleton {
+  border-radius: 2px;
+  animation: fplpulse 1.3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fpl-skeleton {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
 @keyframes fplfade {
   from {
     opacity: 0;

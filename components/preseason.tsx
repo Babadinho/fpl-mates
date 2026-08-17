@@ -64,7 +64,7 @@ export function Preseason({
   preseason: NonNullable<LeaderboardView['preseason']>;
   showSearch: boolean;
   /** Absent when no gameweek is known, so there is nothing a row could open. */
-  onOpenSquad?: (entryId: number) => void;
+  onOpenSquad?: (manager: { entryId: number; name: string; team: string }) => void;
 }) {
   const countdown = useCountdown(preseason.deadline);
   const [query, setQuery] = useState('');
@@ -163,7 +163,11 @@ export function Preseason({
           visible.map((row) => (
             <div
               key={row.num + row.name}
-              onClick={onOpenSquad ? () => onOpenSquad(row.entryId) : undefined}
+              onClick={
+                onOpenSquad
+                  ? () => onOpenSquad({ entryId: row.entryId, name: row.name, team: row.team })
+                  : undefined
+              }
               role={onOpenSquad ? 'button' : undefined}
               tabIndex={onOpenSquad ? 0 : undefined}
               onKeyDown={
@@ -171,7 +175,7 @@ export function Preseason({
                   ? (e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        onOpenSquad(row.entryId);
+                        onOpenSquad({ entryId: row.entryId, name: row.name, team: row.team });
                       }
                     }
                   : undefined
