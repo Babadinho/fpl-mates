@@ -124,8 +124,11 @@ function Row({ row, onOpen }: { row: UiRow; onOpen?: () => void }) {
 function Meta({ view, nowrap = false }: { view: TableView; nowrap?: boolean }) {
   return (
     <div
+      // Only from sm up: the no-wrap exists to keep this on the title's
+      // baseline on a wide screen, and on a phone it forces a long meta line
+      // ("In play · 6 of 10 fixtures started · provisional") off the edge.
       className={`font-mono text-[11px] ${view.provisional ? 'text-amber' : 'text-dim'} ${
-        nowrap ? 'whitespace-nowrap' : ''
+        nowrap ? 'sm:whitespace-nowrap' : ''
       }`}
     >
       {view.meta}
@@ -180,7 +183,9 @@ function Table({
 
         <div
           className={`flex gap-2.5 ${
-            showSearch ? 'flex-col items-stretch sm:items-end' : 'items-center gap-3'
+            showSearch
+              ? 'flex-col items-stretch sm:items-end'
+              : 'flex-wrap items-center gap-x-3 gap-y-1.5'
           }`}
         >
           {!showSearch && <Meta view={view} nowrap />}
