@@ -122,16 +122,9 @@ function Row({ row, onOpen }: { row: UiRow; onOpen?: () => void }) {
 }
 
 /** Amber while a gameweek is in play, so a provisional table reads as one. */
-function Meta({ view, nowrap = false }: { view: TableView; nowrap?: boolean }) {
+function Meta({ view }: { view: TableView }) {
   return (
-    <div
-      // Only from sm up: the no-wrap exists to keep this on the title's
-      // baseline on a wide screen, and on a phone it forces a long meta line
-      // ("In play · 6 of 10 fixtures started · provisional") off the edge.
-      className={`font-mono text-[11px] ${view.provisional ? 'text-amber' : 'text-dim'} ${
-        nowrap ? 'sm:whitespace-nowrap' : ''
-      }`}
-    >
+    <div className={`font-mono text-[11px] ${view.provisional ? 'text-amber' : 'text-dim'}`}>
       {view.meta}
     </div>
   );
@@ -168,28 +161,17 @@ function Table({
   return (
     <section className="pt-[26px]">
       {/*
-        With a search box, title and meta stack on the left so the box can hold
-        the right of the row. Without one the right side would be empty, so the
-        meta keeps its old place on the title's baseline.
+        Meta always sits under the title. It describes the table, so it belongs
+        with its name rather than moving to the opposite corner depending on
+        whether a search box happens to be shown.
       */}
-      <div
-        className={`flex flex-col items-stretch gap-3 pb-[18px] sm:flex-row sm:justify-between sm:gap-6 ${
-          showSearch ? 'sm:items-end' : 'sm:items-baseline'
-        }`}
-      >
+      <div className="flex flex-col items-stretch gap-3 pb-[18px] sm:flex-row sm:items-end sm:justify-between sm:gap-6">
         <div className="flex flex-col gap-[7px]">
           <h2 className="display m-0 text-[32px] tracking-[0.02em]">{view.title}</h2>
-          {showSearch && <Meta view={view} />}
+          <Meta view={view} />
         </div>
 
-        <div
-          className={`flex gap-2.5 ${
-            showSearch
-              ? 'flex-col items-stretch sm:items-end'
-              : 'flex-wrap items-center gap-x-3 gap-y-1.5'
-          }`}
-        >
-          {!showSearch && <Meta view={view} nowrap />}
+        <div className="flex flex-col items-stretch gap-2.5 sm:items-end">
           {refresh && <Refresh fetchedAt={refresh.fetchedAt} intervalSeconds={refresh.intervalSeconds} />}
           {showSearch && (
             <SearchBox
