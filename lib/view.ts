@@ -50,6 +50,11 @@ export interface HeroCell {
   name: string;
   value: string;
   sub: string;
+  /**
+   * ISO instant to count down to, shown in place of `sub` once mounted. Set
+   * only while a gameweek is waiting to start — the countdown is the point.
+   */
+  countdownTo?: string | null;
 }
 
 export interface LeaderboardView {
@@ -232,14 +237,23 @@ async function fromDatabase(): Promise<SourceData> {
 
 /* -------------------------------------------------------------- helpers */
 
-function toUiRows(rows: RankedRow[], cells: (row: RankedRow) => [string, string, string]): UiRow[] {
+function toUiRows(
+  rows: RankedRow[],
+  cells: (row: RankedRow) => [string, string, string],
+  /**
+   * Everyone is on zero, so the order is arbitrary. Numbering it 01, 02, 03
+   * would invent a standing that does not exist, and mark somebody leader for
+   * being alphabetically lucky.
+   */
+  unranked = false,
+): UiRow[] {
   return rows.map((row) => ({
     entryId: row.entryId,
-    rank: pad(row.rank),
+    rank: unranked ? '–' : pad(row.rank),
     name: row.manager.playerName,
     team: row.manager.entryName,
     chip: row.chip,
-    isLeader: row.rank === 1,
+    isLeader: !unranked && row.rank === 1,
     shared: row.shared,
     c0: cells(row)[0],
     c1: cells(row)[1],
@@ -511,8 +525,45 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   const nextWeek = source.weeks.find((w) => !w.dataChecked);
   const provisional = source.weeks.find((w) => w.finished && !w.dataChecked);
 
+  /**
+   * Nothing scored anywhere: a deadline has gone but no gameweek has settled,
+   * so every table is a column of zeros.
+   *
+   * The hero still renders, saying what is being waited for rather than
+   * leaving a gap where the winners will be. It runs from the first deadline
+   * until the first gameweek settles — most of a weekend.
+   */
+  const nothingScored = seasonRows.every((r) => r.points === 0);
+
   let hero: LeaderboardView['hero'] = null;
-  if (seasonStarted && lastSettled !== null) {
+
+  if (nothingScored && nextWeek) {
+    const inMonth = allMonths.get(nextWeek.monthKey)?.length ?? 0;
+
+    hero = {
+      week: {
+        label: `Gameweek ${nextWeek.event} winner`,
+        name: 'To be decided',
+        value: liveState ? `${liveState.total} fixtures` : 'not started',
+        sub: 'waiting for kickoff',
+        // Null when FPL is unreachable, in which case the cell just reads
+        // "waiting for kickoff" rather than counting down to nothing.
+        countdownTo: liveState?.fixtures.find((f) => !f.started)?.kickoff ?? null,
+      },
+      month: {
+        label: `${monthLabel(nextWeek.monthKey, tz)} winner`,
+        name: 'To be decided',
+        value: `${inMonth} gameweek${inMonth === 1 ? '' : 's'}`,
+        sub: 'nothing scored yet',
+      },
+      season: {
+        label: 'Season leader',
+        name: 'To be decided',
+        value: `${source.weeks.length} gameweeks`,
+        sub: 'nothing scored yet',
+      },
+    };
+  } else if (seasonStarted && lastSettled !== null) {
     const weekWinner = declareWinner(
       weeklyTable(source.scores, source.managers, lastSettled, options),
       cfg.rules.tiebreakOrder,
@@ -586,11 +637,15 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
                   note:
                     'Provisional. Bonus is estimated from live match scores and can still ' +
                     'change; no winner is recorded until FPL confirms the final points.',
-                  rows: toUiRows(table, (r) => [
-                    String(r.points),
-                    `+${state.provisionalBonus.get(r.entryId) ?? 0}`,
-                    r.hits ? `−${r.hits}` : '—',
-                  ]),
+                  rows: toUiRows(
+                    table,
+                    (r) => [
+                      String(r.points),
+                      `+${state.provisionalBonus.get(r.entryId) ?? 0}`,
+                      r.hits ? `−${r.hits}` : '—',
+                    ],
+                    state.started === 0,
+                  ),
                 },
         };
       }

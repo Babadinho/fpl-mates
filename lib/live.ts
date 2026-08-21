@@ -30,6 +30,8 @@ export interface LiveFixture {
   score: string;
   /** "45'", "FT", or empty before kickoff. */
   clock: string;
+  /** ISO kickoff, for counting down to it on the client. */
+  kickoff: string | null;
   started: boolean;
   finished: boolean;
 }
@@ -143,6 +145,7 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
         ? `${f.team_h_score} – ${f.team_a_score}`
         : formatKickoff(f.kickoff_time, cfg.rules.timezone),
     clock: f.finished ? 'FT' : f.started ? `${f.minutes}'` : '',
+    kickoff: f.kickoff_time,
     started: f.started,
     finished: f.finished,
   }));

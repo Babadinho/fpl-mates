@@ -1,4 +1,5 @@
 import { Gate } from '@/components/gate';
+import { Hero } from '@/components/hero';
 import { Leaderboard } from '@/components/leaderboard';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { hasAccess, rememberedFor } from '@/lib/auth';
@@ -62,20 +63,7 @@ export default async function Page() {
         </header>
 
         {/* ------------------------------------------------------ hero strip */}
-        {data.hero ? (
-          <section className="grid grid-cols-1 gap-px border-b border-line bg-line sm:grid-cols-3">
-            {[data.hero.week, data.hero.month, data.hero.season].map((cell) => (
-              <div key={cell.label} className="flex flex-col gap-3 bg-bg px-6 pt-[26px] pb-7">
-                <div className="label">{cell.label}</div>
-                <div className="display text-[38px] tracking-[0.01em]">{cell.name}</div>
-                <div className="flex items-baseline gap-2.5 font-mono text-[12px] text-dim">
-                  <span className="text-[15px] text-accent">{cell.value}</span>
-                  <span>{cell.sub}</span>
-                </div>
-              </div>
-            ))}
-          </section>
-        ) : null}
+        {data.hero ? <Hero hero={[data.hero.week, data.hero.month, data.hero.season]} /> : null}
 
         <Leaderboard data={data} />
 
