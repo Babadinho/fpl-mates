@@ -178,6 +178,13 @@ const schema = z.object({
   ACCENT_COLOR_DARK: cssColor('oklch(0.72 0.19 145)'),
   POP_COLOR_DARK: cssColor('oklch(0.78 0.16 100)'),
   /**
+   * Marks anything provisional — the gameweek in play, its pill, its meta line.
+   * A third colour rather than the accent on purpose, so a table that is still
+   * moving cannot be mistaken for a settled one.
+   */
+  LIVE_COLOR: cssColor('oklch(0.62 0.14 70)'),
+  LIVE_COLOR_DARK: cssColor('oklch(0.8 0.15 80)'),
+  /**
    * Shared passcode for the whole league. Unset means the page is public.
    * Not accounts — the brief puts those out of scope, and a group of friends
    * wants a private table, not a login to administer.
@@ -347,8 +354,8 @@ function load() {
     },
 
     theme: {
-      light: { accent: env.ACCENT_COLOR, pop: env.POP_COLOR },
-      dark: { accent: env.ACCENT_COLOR_DARK, pop: env.POP_COLOR_DARK },
+      light: { accent: env.ACCENT_COLOR, pop: env.POP_COLOR, live: env.LIVE_COLOR },
+      dark: { accent: env.ACCENT_COLOR_DARK, pop: env.POP_COLOR_DARK, live: env.LIVE_COLOR_DARK },
     },
 
     rules: {

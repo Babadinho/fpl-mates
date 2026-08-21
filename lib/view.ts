@@ -603,7 +603,19 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
 
   const liveInPlay = live?.inPlay === true && live.view !== null;
   /** Deadline gone, no ball kicked: squads are frozen and the table is level. */
-  const liveLocked = live?.view != null && live.started === 0;
+  /**
+   * Deadline gone, nothing kicked off yet.
+   *
+   * Read from the stored deadline rather than from the live fetch: FPL takes
+   * its live endpoint down for maintenance straight after a deadline, and the
+   * page must not fall back to saying PRESEASON just because it could not
+   * reach them. Teams being locked is a fact about the clock.
+   */
+  const liveLocked =
+    !seasonStarted &&
+    nextWeek !== undefined &&
+    nextWeek.deadlineTime.getTime() <= Date.now() &&
+    (live?.started ?? 0) === 0;
 
   return {
     live,

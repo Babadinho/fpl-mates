@@ -101,6 +101,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           '--pop-light': theme.light.pop,
           '--accent-dark': theme.dark.accent,
           '--pop-dark': theme.dark.pop,
+          '--amber-light': theme.light.live,
+          '--amber-dark': theme.dark.live,
         } as React.CSSProperties
       }
     >
