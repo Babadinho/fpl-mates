@@ -134,6 +134,19 @@ function withBudget<T>(work: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+/**
+ * After a failure, stop asking for a moment.
+ *
+ * FPL's post-deadline maintenance runs for many minutes, so without this every
+ * request spends the full budget rediscovering the same 503. Paying it once a
+ * minute instead takes the page back to reading Postgres alone.
+ *
+ * Per-instance, since it is only module memory — a cold start simply tries
+ * again, which is the safe direction to be wrong in.
+ */
+const LIVE_PAUSE_MS = 60_000;
+let livePausedUntil = 0;
+
 /** Rows per page. Also the threshold for `SHOW_SEARCH=auto`. */
 export const PAGE_SIZE = 25;
 
@@ -342,11 +355,13 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   let liveState: Awaited<ReturnType<typeof getLiveState>> = null;
   if (cfg.live.enabled && !cfg.useFixtures) {
     const upcoming = source.weeks.find((w) => !w.dataChecked);
-    if (upcoming) {
+    if (upcoming && Date.now() >= livePausedUntil) {
       try {
         liveState = await withBudget(getLiveState(upcoming.event), LIVE_PAGE_BUDGET_MS);
+        livePausedUntil = 0;
       } catch {
         liveState = null;
+        livePausedUntil = Date.now() + LIVE_PAUSE_MS;
       }
     }
   }
