@@ -561,9 +561,16 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         label: `Gameweek ${nextWeek.event} winner`,
         name: 'To be decided',
         value: liveState ? `${liveState.total} fixtures` : 'not started',
-        sub: liveState?.started
-          ? `${liveState.started} of ${liveState.total} under way`
-          : 'waiting for kickoff',
+        // "under way" only while something is. `started` counts every match
+        // that has kicked off, finished ones included, so on its own it called
+        // a match that ended an hour ago under way.
+        sub: !liveState
+          ? 'waiting for kickoff'
+          : liveState.inPlay
+            ? `${liveState.started - liveState.finished} under way`
+            : liveState.started === 0
+              ? 'waiting for kickoff'
+              : `${liveState.finished} of ${liveState.total} played`,
         // Only before anything kicks off. Once a match is on, the next
         // unstarted fixture may be days away, and counting down to it beside a
         // game in progress reads as a stopped clock.
