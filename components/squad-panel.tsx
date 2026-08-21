@@ -17,6 +17,7 @@ function Row({ player }: { player: SquadPlayer }) {
 
       <div className="flex min-w-0 items-center gap-2">
         <span
+          title={player.name}
           className={`truncate text-[15px] font-medium tracking-[-0.01em] ${
             player.benched ? 'text-dim' : 'text-ink'
           }`}
@@ -41,11 +42,20 @@ function Row({ player }: { player: SquadPlayer }) {
         </span>
       </div>
 
-      <span
-        className={`text-right font-mono text-[15px] ${player.benched ? 'text-dim' : 'text-ink'}`}
-      >
-        {player.points}
-      </span>
+      {/* Stacked like the club and minutes opposite, so naming the bonus costs
+          no information — it is part of the score, not instead of it. */}
+      <div className="flex flex-col items-end gap-[2px]">
+        <span className={`font-mono text-[15px] ${player.benched ? 'text-dim' : 'text-ink'}`}>
+          {player.points}
+        </span>
+        {/* Not on the bench: bonus a benched player earned counted for nobody,
+            so showing it beside a dimmed score would read as points banked. */}
+        {player.bonus > 0 && !player.benched && (
+          <span className="font-mono text-[9px] tracking-[0.06em] text-accent">
+            bonus +{player.bonus}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -192,7 +202,9 @@ export function SquadPanel({
             <h2 className="display m-0 text-[36px] leading-[0.95] tracking-[0.02em]">
               {squad?.name ?? name}
             </h2>
-            <span className="truncate font-mono text-[12px] text-dim">{squad?.team ?? team}</span>
+            <span title={squad?.team ?? team} className="truncate font-mono text-[12px] text-dim">
+              {squad?.team ?? team}
+            </span>
           </div>
 
           <button

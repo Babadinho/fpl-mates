@@ -14,6 +14,7 @@ import { mockLeague } from './fixtures/mock';
 import { mockSquad } from './fixtures/squads';
 import { fetchBootstrap, fetchFixtures, fetchLiveEvent } from './fpl/client';
 import { CHIP_LABELS, positionOf } from './fpl/schemas';
+import { provisionalBonusByElement, type FixtureBps } from './scoring/bonus';
 
 /** How a player's gameweek is going, which decides how the row reads. */
 export type PlayerState = 'yet' | 'playing' | 'done' | 'blank';
@@ -31,6 +32,8 @@ export interface SquadPlayer {
   state: PlayerState;
   /** Already multiplied, so it is what the manager actually banked. */
   points: number;
+  /** Bonus within those points: awarded where FPL has confirmed it, else estimated. */
+  bonus: number;
   benched: boolean;
 }
 
@@ -89,6 +92,8 @@ function fromFixtures(entryId: number, event: number): SquadView | null {
     minutes: p.minutes,
     state: p.minutes === 0 ? 'blank' : 'done',
     points: p.points * Math.max(1, p.multiplier),
+    // The mock has no bonus of its own; the demo shows points only.
+    bonus: 0,
     benched: p.multiplier === 0,
   });
 
@@ -150,6 +155,24 @@ async function fromDatabase(entryId: number, event: number): Promise<SquadView |
 
   const anyStarted = fixtures.some((f) => f.started);
 
+  // Same two halves as the live table: FPL zeroes `bonus` until it awards it,
+  // and the estimate is skipped for fixtures already awarded, so they never
+  // overlap. Without the estimate a squad would read zero bonus all afternoon.
+  const bpsByFixture: FixtureBps[] = fixtures
+    .filter((f) => f.started)
+    .map((f) => {
+      const entries = live.elements
+        .filter((e) => {
+          const team = player.get(e.id)?.team;
+          return team === f.team_h || team === f.team_a;
+        })
+        .map((e) => ({ elementId: e.id, bps: e.stats.bps }));
+      const bonusAwarded = entries.some((e) => (stats.get(e.elementId)?.bonus ?? 0) > 0);
+      return { fixtureId: f.id, bonusAwarded, entries };
+    });
+
+  const estimatedBonus = provisionalBonusByElement(bpsByFixture);
+
   const toRow = (elementId: number, index: number): SquadPlayer => {
     const meta = player.get(elementId);
     const stat = stats.get(elementId);
@@ -181,6 +204,7 @@ async function fromDatabase(entryId: number, event: number): Promise<SquadView |
       minutes: state === 'yet' ? null : minutes,
       state,
       points: (stat?.total_points ?? 0) * Math.max(1, multiplier),
+      bonus: ((stat?.bonus ?? 0) + (estimatedBonus.get(elementId) ?? 0)) * Math.max(1, multiplier),
       benched,
     };
   };
