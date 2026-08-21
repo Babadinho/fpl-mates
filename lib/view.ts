@@ -114,6 +114,26 @@ interface SourceData {
   lastPolled: Date | null;
 }
 
+/**
+ * How long a page render will wait for live scores before giving up on them.
+ *
+ * The client retries a refused request five times over about fifteen seconds,
+ * which is right for the poller and ruinous here: FPL puts the live endpoint
+ * into maintenance for a while after every deadline, and without this the page
+ * pays that whole budget on every single request. Measured at 17 seconds.
+ *
+ * Settled tables do not depend on this, so timing out costs the live figures
+ * and nothing else. The next request tries again.
+ */
+const LIVE_PAGE_BUDGET_MS = 2500;
+
+function withBudget<T>(work: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('live budget spent')), ms)),
+  ]);
+}
+
 /** Rows per page. Also the threshold for `SHOW_SEARCH=auto`. */
 export const PAGE_SIZE = 25;
 
@@ -324,7 +344,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     const upcoming = source.weeks.find((w) => !w.dataChecked);
     if (upcoming) {
       try {
-        liveState = await getLiveState(upcoming.event);
+        liveState = await withBudget(getLiveState(upcoming.event), LIVE_PAGE_BUDGET_MS);
       } catch {
         liveState = null;
       }
