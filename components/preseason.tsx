@@ -186,14 +186,14 @@ export function Preseason({
             >
               <div className="font-mono text-[13px] text-dim">{row.num}</div>
               <div className="min-w-0">
-                <div className="truncate text-[16px] font-medium tracking-[-0.01em]">
+                <div title={row.name} className="truncate text-[16px] font-medium tracking-[-0.01em]">
                   {row.name}
                 </div>
-                <div className="truncate font-mono text-[12.5px] text-dim sm:hidden">
+                <div title={row.team} className="truncate font-mono text-[12.5px] text-dim sm:hidden">
                   {row.team}
                 </div>
               </div>
-              <div className="hidden truncate font-mono text-[13px] text-dim sm:block">
+              <div title={row.team} className="hidden truncate font-mono text-[13px] text-dim sm:block">
                 {row.team}
               </div>
               <div className="text-right">

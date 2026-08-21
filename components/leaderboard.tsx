@@ -97,10 +97,14 @@ function Row({ row, onOpen }: { row: UiRow; onOpen?: () => void }) {
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex min-w-0 flex-col gap-[3px]">
           <div className="flex items-center gap-2">
-            <span className="truncate text-[16px] font-medium tracking-[-0.01em]">{row.name}</span>
+            <span title={row.name} className="truncate text-[16px] font-medium tracking-[-0.01em]">
+              {row.name}
+            </span>
             {row.isLeader && <span className="h-1.5 w-1.5 flex-none rounded-full bg-pop" />}
           </div>
-          <span className="truncate font-mono text-[11px] text-dim">{row.team}</span>
+          <span title={row.team} className="truncate font-mono text-[11px] text-dim">
+            {row.team}
+          </span>
         </div>
         {row.chip && (
           <span className="flex-none rounded-[3px] border border-line px-1.5 py-[3px] font-mono text-[10px] tracking-[0.08em] text-accent uppercase">
@@ -265,7 +269,9 @@ function History({ history }: { history: LeaderboardView['history'] }) {
             className="grid grid-cols-[56px_minmax(0,1fr)_64px] items-center border-b border-hair py-[13px]"
           >
             <span className="font-mono text-[11px] text-dim">{w.gw}</span>
-            <span className="truncate text-[15px] font-medium">{w.name}</span>
+            <span title={w.name} className="truncate text-[15px] font-medium">
+              {w.name}
+            </span>
             <span className="text-right font-mono text-[13px]">{w.pts}</span>
           </div>
         ))}
@@ -282,7 +288,9 @@ function History({ history }: { history: LeaderboardView['history'] }) {
             className="grid grid-cols-[76px_minmax(0,1fr)_64px] items-center border-b border-hair py-[13px]"
           >
             <span className="font-mono text-[11px] text-dim">{m.month}</span>
-            <span className="truncate text-[15px] font-medium">{m.name}</span>
+            <span title={m.name} className="truncate text-[15px] font-medium">
+              {m.name}
+            </span>
             <span className="text-right font-mono text-[13px]">{m.pts}</span>
           </div>
         ))}

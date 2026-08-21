@@ -45,7 +45,9 @@ function EventRow({ event }: { event: FixtureEvent }) {
       >
         {event.club}
       </span>
-      <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{event.name}</span>
+      <span title={event.name} className="min-w-0 flex-1 truncate text-[14px] font-medium">
+        {event.name}
+      </span>
       {typeof event.points === 'number' && event.points !== 0 && (
         <span className="flex-none font-mono text-[11px] text-dim">
           {event.points > 0 ? `+${event.points}` : `−${Math.abs(event.points)}`}
@@ -149,7 +151,7 @@ export function FixturePanel({
         role="dialog"
         aria-modal="true"
         aria-label="Fixture detail"
-        className="fpl-panel relative h-full w-full max-w-full overflow-y-auto overscroll-contain border-l border-line bg-bg px-[18px] pt-[22px] pb-10 shadow-[-24px_0_60px_rgba(12,8,20,0.18)] will-change-transform sm:w-[460px] sm:px-[30px] sm:pt-[30px] sm:pb-[46px] lg:w-[620px] lg:px-10"
+        className="fpl-panel relative h-full w-full max-w-full overflow-y-auto overscroll-contain border-l border-line bg-bg px-[18px] pt-[22px] pb-10 shadow-[-24px_0_60px_rgba(12,8,20,0.18)] will-change-transform sm:w-[460px] sm:px-[30px] sm:pt-[30px] sm:pb-[46px] lg:w-[560px]"
       >
         <div className="flex items-start justify-between gap-5 border-b border-line pb-5">
           <div className="flex flex-col gap-1.5">
@@ -243,7 +245,10 @@ export function FixturePanel({
                       key={p.name}
                       className="flex items-center gap-2.5 border-b border-hair py-2.5"
                     >
-                      <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
+                      <span
+                        title={p.name}
+                        className="min-w-0 flex-1 truncate text-[14px] font-medium"
+                      >
                         {p.name}
                       </span>
                       <span className="w-8 flex-none font-mono text-[9px] tracking-[0.1em] text-amber uppercase">
