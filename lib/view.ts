@@ -641,17 +641,23 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         ? `GW ${live!.event} LIVE · PROVISIONAL`
         : provisional
           ? `GW ${provisional.event} PROVISIONAL`
-          : seasonStarted
-            ? `GW ${lastSettled} SETTLED`
-            : 'PRESEASON',
+          : liveLocked
+            ? // nextWeek, not live — this state exists precisely when the live
+              // fetch has failed, so reading through it would crash the page.
+              `GW ${nextWeek!.event} LOCKED`
+            : seasonStarted
+              ? `GW ${lastSettled} SETTLED`
+              : 'PRESEASON',
       sub: liveInPlay
         ? seasonStarted
           ? `GW ${lastSettled} final · GW ${live!.event} still playing`
           : `GW ${live!.event} in play`
         : provisional
           ? 'waiting for FPL to apply bonus points'
-          : !seasonStarted
-            ? 'no gameweeks played yet'
+          : liveLocked
+            ? `teams locked · ${live ? `${live.total} fixtures to play` : 'waiting on FPL'}`
+            : !seasonStarted
+              ? 'no gameweeks played yet'
             : nextWeek
               ? `GW ${nextWeek.event} deadline ${deadlineLabel(nextWeek.deadlineTime, tz)}`
               : 'season complete',
