@@ -18,7 +18,11 @@ function useCountdown(iso: string | null) {
   // Null until mounted, so the server and first client render agree.
   if (!iso || now === null) return null;
 
-  const ms = Math.max(0, new Date(iso).getTime() - now);
+  // Past the deadline there is nothing to count to, and clamping at zero
+  // leaves "0d 00:00:00" on screen looking like a stopped clock.
+  const ms = new Date(iso).getTime() - now;
+  if (ms <= 0) return null;
+
   const pad = (n: number) => String(n).padStart(2, '0');
   const days = Math.floor(ms / 86_400_000);
   const hours = Math.floor(ms / 3_600_000) % 24;
@@ -44,7 +48,7 @@ export function Fixtures({
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-baseline sm:gap-4">
           <h2 className="display m-0 text-[32px] tracking-[0.02em]">Gameweek {live.event}</h2>
           <span className="font-mono text-[11px] text-dim">
-            {countdown ? `Deadline in ${countdown}` : 'Deadline'}
+            {countdown ? `Deadline in ${countdown}` : 'Teams locked'}
           </span>
         </div>
         <div className="flex items-center gap-3">

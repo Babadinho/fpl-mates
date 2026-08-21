@@ -12,7 +12,6 @@
  */
 import { getConfig } from './config';
 import { fetchBootstrap, fetchFixtures, fetchLiveEvent } from './fpl/client';
-import { positionOf } from './fpl/schemas';
 
 export interface FixtureEvent {
   club: string;
@@ -21,11 +20,14 @@ export interface FixtureEvent {
   name: string;
   /** Bonus points, or a card colour — whatever the section shows on the right. */
   detail: string;
+  /** FPL points the event was worth, when it costs some. Null when it does not. */
+  points?: number | null;
 }
 
 export interface FixturePlayer {
   name: string;
-  role: string;
+  /** Whether they started or came on. */
+  started: boolean;
   minutes: number;
 }
 
@@ -34,11 +36,18 @@ export interface FixtureDetail {
   title: string;
   status: string;
   live: boolean;
+  /** Not kicked off: the panel counts down instead of listing nothing. */
+  pre: boolean;
+  /** ISO kickoff, for that countdown. */
+  kickoffAt: string | null;
+  kickoffLabel: string;
   home: string;
   away: string;
   goals: FixtureEvent[];
   assists: FixtureEvent[];
   cards: FixtureEvent[];
+  /** Kept apart from cards: not a booking, and it flatters the wrong side. */
+  ownGoals: FixtureEvent[];
   bonus: FixtureEvent[];
   /** Confirmed once FPL awards it; estimated from BPS until then. */
   bonusConfirmed: boolean;
@@ -63,6 +72,17 @@ export async function getFixtureDetail(
   const player = new Map(bootstrap.elements.map((e) => [e.id, e]));
   const stats = new Map(live.elements.map((e) => [e.id, e.stats]));
 
+  /**
+   * What an event was worth to the player, read from FPL's own breakdown
+   * rather than assumed — a yellow is −1 and a red −3 today, but that is
+   * their rule to change.
+   */
+  const pointsFor = (elementId: number, identifier: string): number | null => {
+    const entry = live.elements.find((e) => e.id === elementId);
+    const forThis = entry?.explain.find((x) => x.fixture === fixtureId);
+    return forThis?.stats.find((s) => s.identifier === identifier)?.points ?? null;
+  };
+
   const home = clubOf.get(fixture.team_h) ?? '???';
   const away = clubOf.get(fixture.team_a) ?? '???';
   const nameOf = (id: number) => player.get(id)?.web_name ?? 'Unknown';
@@ -71,13 +91,21 @@ export async function getFixtureDetail(
     fixture.stats.find((s) => s.identifier === identifier);
 
   /** Flattens a stat group into rows, home side first as the scoreline reads. */
-  const rows = (identifier: string, detail: (value: number) => string): FixtureEvent[] => {
+  const rows = (
+    identifier: string,
+    detail: (value: number) => string,
+    withPoints = false,
+  ): FixtureEvent[] => {
     const g = group(identifier);
     if (!g) return [];
-    return [
-      ...g.h.map((e) => ({ club: home, home: true, name: nameOf(e.element), detail: detail(e.value) })),
-      ...g.a.map((e) => ({ club: away, home: false, name: nameOf(e.element), detail: detail(e.value) })),
-    ];
+    const one = (e: { value: number; element: number }, isHome: boolean) => ({
+      club: isHome ? home : away,
+      home: isHome,
+      name: nameOf(e.element),
+      detail: detail(e.value),
+      points: withPoints ? pointsFor(e.element, identifier) : null,
+    });
+    return [...g.h.map((e) => one(e, true)), ...g.a.map((e) => one(e, false))];
   };
 
   // Real bonus once FPL awards it, which happens after the match is confirmed.
@@ -97,15 +125,17 @@ export async function getFixtureDetail(
           detail: `${e.value} bps`,
         }));
 
+  // `starts` is exact. Inferring from minutes would call anyone substituted
+  // off a sub, which is the opposite of what happened.
   const lineupFor = (teamId: number): FixturePlayer[] =>
     bootstrap.elements
       .filter((e) => e.team === teamId && (stats.get(e.id)?.minutes ?? 0) > 0)
       .map((e) => ({
         name: e.web_name,
-        role: positionOf(e.element_type),
+        started: (stats.get(e.id)?.starts ?? 0) > 0,
         minutes: stats.get(e.id)?.minutes ?? 0,
       }))
-      .sort((a, b) => b.minutes - a.minutes);
+      .sort((a, b) => Number(b.started) - Number(a.started) || b.minutes - a.minutes);
 
   const score =
     fixture.started && fixture.team_h_score !== null && fixture.team_a_score !== null
@@ -124,21 +154,24 @@ export async function getFixtureDetail(
   return {
     id: fixture.id,
     title: `${home} ${score} ${away}`,
-    status: fixture.finished
+    status: fixture.finished_provisional
       ? 'Full time'
       : fixture.started
         ? `${fixture.minutes}' — in play`
         : kickoff,
-    live: fixture.started && !fixture.finished,
+    live: fixture.started && !fixture.finished_provisional,
+    pre: !fixture.started,
+    kickoffAt: fixture.kickoff_time,
+    kickoffLabel: kickoff,
     home,
     away,
     goals: rows('goals_scored', (v) => (v > 1 ? `×${v}` : '')),
     assists: rows('assists', (v) => (v > 1 ? `×${v}` : '')),
     cards: [
-      ...rows('yellow_cards', () => 'Yellow'),
-      ...rows('red_cards', () => 'Red'),
-      ...rows('own_goals', (v) => (v > 1 ? `Own goal ×${v}` : 'Own goal')),
+      ...rows('yellow_cards', () => 'Yellow', true),
+      ...rows('red_cards', () => 'Red', true),
     ],
+    ownGoals: rows('own_goals', (v) => (v > 1 ? `×${v}` : ''), true),
     bonus,
     bonusConfirmed,
     lineups: [

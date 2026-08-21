@@ -144,14 +144,17 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
       f.started && f.team_h_score !== null && f.team_a_score !== null
         ? `${f.team_h_score} – ${f.team_a_score}`
         : formatKickoff(f.kickoff_time, cfg.rules.timezone),
-    clock: f.finished ? 'FT' : f.started ? `${f.minutes}'` : '',
+    // finished_provisional flips at the whistle; `finished` waits for FPL to
+    // confirm, which can be an hour later. Display follows the whistle —
+    // scoring is what has to wait, and that gates on data_checked elsewhere.
+    clock: f.finished_provisional ? 'FT' : f.started ? `${f.minutes}'` : '',
     kickoff: f.kickoff_time,
     started: f.started,
-    finished: f.finished,
+    finished: f.finished_provisional,
   }));
 
   const started = fixtures.filter((f) => f.started).length;
-  const finished = fixtures.filter((f) => f.finished).length;
+  const finished = fixtures.filter((f) => f.finished_provisional).length;
 
   // Before the deadline there is nothing to show: squads are still being
   // edited, so a table would rank teams nobody has committed to. After it,
