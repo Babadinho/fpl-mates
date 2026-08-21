@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { FixturePanel } from './fixture-panel';
 import { Refresh } from './refresh';
 import type { LeaderboardView } from '@/lib/view';
 
@@ -35,6 +36,7 @@ export function Fixtures({
   refreshSeconds: number | null;
 }) {
   const countdown = useCountdown(live.nextDeadline);
+  const [openFixture, setOpenFixture] = useState<number | null>(null);
 
   return (
     <section className="pt-[30px]">
@@ -59,7 +61,19 @@ export function Fixtures({
 
       <div className="grid grid-cols-2 gap-px border-t border-b border-line bg-line sm:grid-cols-3 lg:grid-cols-5">
         {live.fixtures.map((fx) => (
-          <div key={fx.id} className="flex flex-col gap-2 bg-bg px-3.5 py-[18px]">
+          <div
+            key={fx.id}
+            onClick={() => setOpenFixture(fx.id)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setOpenFixture(fx.id);
+              }
+            }}
+            className="flex cursor-pointer flex-col gap-2 bg-bg px-3.5 py-[18px] transition-colors duration-[120ms] hover:bg-hover"
+          >
             <div className="flex items-baseline justify-between gap-2">
               <span className="font-mono text-[12px] tracking-[0.06em] text-ink">{fx.home}</span>
               <span
@@ -79,6 +93,14 @@ export function Fixtures({
       </div>
 
       <p className="pt-[18px] font-mono text-[11px] leading-[1.7] text-dim">{live.note}</p>
+
+      {openFixture !== null && (
+        <FixturePanel
+          event={live.event}
+          fixtureId={openFixture}
+          onClose={() => setOpenFixture(null)}
+        />
+      )}
     </section>
   );
 }

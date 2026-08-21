@@ -181,6 +181,25 @@ export const fixtureSchema = z.object({
   team_a: z.number().int(),
   team_h_score: z.number().int().nullable(),
   team_a_score: z.number().int().nullable(),
+  /**
+   * Per-player match events, grouped by identifier — goals_scored, assists,
+   * yellow_cards, bonus, bps and so on, each split into home and away.
+   *
+   * Entries are `{ value, element }` and carry no timestamp, so these can be
+   * listed but never placed on a timeline.
+   *
+   * Defaulted: this drives a detail panel, and losing it must not take the
+   * fixtures grid or live scoring down with it.
+   */
+  stats: z
+    .array(
+      z.object({
+        identifier: z.string(),
+        h: z.array(z.object({ value: z.number().int(), element: z.number().int() })),
+        a: z.array(z.object({ value: z.number().int(), element: z.number().int() })),
+      }),
+    )
+    .default([]),
 });
 
 export const fixturesSchema = z.array(fixtureSchema);
