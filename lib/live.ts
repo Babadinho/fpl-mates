@@ -48,8 +48,10 @@ export interface LiveState {
   inPlay: boolean;
   /** Provisional rows, shaped like stored scores so the same tables work. */
   rows: ScoreRow[];
-  /** Provisional bonus per manager, shown in its own column. */
+  /** Bonus per manager: awarded where FPL has confirmed it, estimated where not. */
   provisionalBonus: Map<number, number>;
+  /** True while any started fixture is still waiting on its bonus. */
+  bonusPending: boolean;
 }
 
 /** Ensures every manager's picks for this gameweek are cached, then returns them. */
@@ -178,6 +180,7 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
       inPlay: false,
       rows: [],
       provisionalBonus: new Map(),
+      bonusPending: false,
     };
   }
 
@@ -223,9 +226,18 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
       if (multiplier === 0) return;
 
       points += (stats.get(elementId)?.total_points ?? 0) * multiplier;
+
+      // Two halves that never overlap: FPL zeroes `bonus` until it awards it,
+      // and the estimate is skipped for any fixture already awarded. Summing
+      // them gives the bonus a manager actually holds, whichever stage each of
+      // their matches is at.
+      const awarded = (stats.get(elementId)?.bonus ?? 0) * multiplier;
       const provisional = (bonusByElement.get(elementId) ?? 0) * multiplier;
+
+      // Only the estimate is added to the score — awarded bonus is already
+      // inside total_points, and adding it again would double it.
       points += provisional;
-      bonus += provisional;
+      bonus += awarded + provisional;
     });
 
     rows.push({
@@ -248,6 +260,9 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
     finished,
     total: fixtures.length,
     inPlay: started > finished,
+    // Any started fixture without awarded bonus means part of the column is
+    // still an estimate, which is what the header has to say.
+    bonusPending: bpsByFixture.some((f) => !f.bonusAwarded),
     rows,
     provisionalBonus,
   };

@@ -663,7 +663,10 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
                       : state.inPlay
                         ? `In play · ${state.started} of ${state.total} fixtures started · provisional`
                         : `${state.finished} of ${state.total} played · provisional`,
-                  headers: ['Points', 'Est. bonus', 'Hits'],
+                  // Only an estimate while a started fixture is still waiting
+                  // on its bonus. Once FPL has awarded them all, the column is
+                  // the real thing and should not still say otherwise.
+                  headers: ['Points', state.bonusPending ? 'Est. bonus' : 'Bonus', 'Hits'],
                   note:
                     'Provisional. Bonus is estimated from live match scores and can still ' +
                     'change; no winner is recorded until FPL confirms the final points.',
