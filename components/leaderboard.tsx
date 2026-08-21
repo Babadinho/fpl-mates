@@ -46,20 +46,17 @@ function PagerButton({
 function Pill({
   label,
   active,
-  live = false,
   onClick,
 }: {
   label: string;
   active: boolean;
-  live?: boolean;
   onClick: () => void;
 }) {
-  // The in-play gameweek is amber rather than accent, so a provisional table is
-  // never mistaken for a settled one.
-  const selected = live ? 'border-amber bg-amber text-bg' : 'border-accent bg-accent text-accent-ink';
-  const idle = live
-    ? 'border-amber/50 bg-panel text-amber hover:border-amber'
-    : 'border-line bg-panel text-dim hover:border-accent hover:text-accent';
+  // Selected or not, and nothing else. A gameweek being in play is said by the
+  // status pill in the header and by the meta above the table, both in amber —
+  // the pills are navigation.
+  const selected = 'border-accent bg-accent text-accent-ink';
+  const idle = 'border-line bg-panel text-dim hover:border-accent hover:text-accent';
 
   return (
     <button
@@ -377,7 +374,6 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
               key={w.event}
               label={w.label}
               active={w.event === event}
-              live={w.event === liveEvent}
               onClick={() => setEvent(w.event)}
             />
           ))}

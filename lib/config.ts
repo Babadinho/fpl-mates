@@ -39,16 +39,6 @@ const boolEnv = (fallback: boolean) =>
  * A self-hoster can only attack themselves here, but there is no reason to
  * allow `;` or `<` to escape the declaration.
  */
-/** Same validation, but absent stays absent so a caller can fall back. */
-const optionalCssColor = () =>
-  z
-    .string()
-    .optional()
-    .transform((v) => (v === undefined || v.trim() === '' ? undefined : v.trim()))
-    .refine((v) => v === undefined || /^[a-zA-Z0-9#%.,()/\s-]+$/.test(v), {
-      message: 'contains characters not valid in a CSS colour',
-    });
-
 const cssColor = (fallback: string) =>
   z
     .string()
@@ -188,14 +178,15 @@ const schema = z.object({
   ACCENT_COLOR_DARK: cssColor('oklch(0.72 0.19 145)'),
   POP_COLOR_DARK: cssColor('oklch(0.78 0.16 100)'),
   /**
-   * Marks anything provisional — the gameweek in play, its pill, its meta line.
+   * Marks anything provisional — the gameweek in play, its pill, its dot.
    *
-   * Defaults to the accent, so a theme is driven entirely by ACCENT_COLOR and
-   * POP_COLOR and no third colour arrives unasked-for. Set these to tell a
-   * table that is still moving apart from a settled one at a glance.
+   * Amber rather than the accent, and deliberately not derived from it: this
+   * is a status, like the red used for errors. A table that is still moving
+   * must not look like a settled one, and it should not stop warning because
+   * somebody chose a different brand colour.
    */
-  LIVE_COLOR: optionalCssColor(),
-  LIVE_COLOR_DARK: optionalCssColor(),
+  LIVE_COLOR: cssColor('oklch(0.62 0.14 70)'),
+  LIVE_COLOR_DARK: cssColor('oklch(0.8 0.15 80)'),
   /**
    * Shared passcode for the whole league. Unset means the page is public.
    * Not accounts — the brief puts those out of scope, and a group of friends
@@ -369,12 +360,12 @@ function load() {
       light: {
         accent: env.ACCENT_COLOR,
         pop: env.POP_COLOR,
-        live: env.LIVE_COLOR ?? env.ACCENT_COLOR,
+        live: env.LIVE_COLOR,
       },
       dark: {
         accent: env.ACCENT_COLOR_DARK,
         pop: env.POP_COLOR_DARK,
-        live: env.LIVE_COLOR_DARK ?? env.ACCENT_COLOR_DARK,
+        live: env.LIVE_COLOR_DARK,
       },
     },
 
