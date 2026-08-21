@@ -68,7 +68,20 @@ export interface LeaderboardView {
   /** Auto-refresh interval in seconds, or null when it is off (the default). */
   refreshSeconds: number | null;
   seasonStarted: boolean;
-  status: { settled: boolean; live: boolean; label: string; sub: string; polled: string };
+  status: {
+    settled: boolean;
+    live: boolean;
+    /**
+     * Anything not final: locked, between fixtures, in play, or waiting on
+     * bonus. Stated here rather than re-derived in the page, which had to
+     * combine three flags and missed the state a gameweek spends most of its
+     * time in.
+     */
+    provisional: boolean;
+    label: string;
+    sub: string;
+    polled: string;
+  };
   hero: { week: HeroCell; month: HeroCell; season: HeroCell } | null;
   weekly: { event: number; label: string; view: TableView }[];
   monthly: { key: string; label: string; short: string; view: TableView }[];
@@ -638,10 +651,18 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
               ? null
               : {
                   title: `Gameweek ${nextWeek.event}`,
+                  // The one table that is always provisional, and the only one
+                  // that never said so — its meta rendered dim like a settled
+                  // gameweek's, which is the state it must not be mistaken for.
+                  provisional: true,
+                  // "In play" only while a match actually is. A gameweek runs
+                  // Friday to Monday and spends most of it between fixtures.
                   meta:
                     state.started === 0
                       ? `Teams locked · ${state.total} fixtures to play`
-                      : `In play · ${state.started} of ${state.total} fixtures started · provisional`,
+                      : state.inPlay
+                        ? `In play · ${state.started} of ${state.total} fixtures started · provisional`
+                        : `${state.finished} of ${state.total} played · provisional`,
                   headers: ['Points', 'Est. bonus', 'Hits'],
                   note:
                     'Provisional. Bonus is estimated from live match scores and can still ' +
@@ -665,21 +686,26 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     }
   }
 
+  /** A match is on right now. */
   const liveInPlay = live?.inPlay === true && live.view !== null;
-  /** Deadline gone, no ball kicked: squads are frozen and the table is level. */
+
   /**
-   * Deadline gone, nothing kicked off yet.
+   * The gameweek has begun and has not settled.
    *
-   * Read from the stored deadline rather than from the live fetch: FPL takes
-   * its live endpoint down for maintenance straight after a deadline, and the
-   * page must not fall back to saying PRESEASON just because it could not
-   * reach them. Teams being locked is a fact about the clock.
+   * From the stored deadline, not from the live fetch. Two things would
+   * otherwise drop the page back to PRESEASON: FPL taking its live endpoint
+   * down for maintenance right after a deadline, and — far more often — the
+   * ordinary state of no match being on. A gameweek runs Friday to Monday and
+   * is between fixtures for most of it.
    */
-  const liveLocked =
-    !seasonStarted &&
-    nextWeek !== undefined &&
-    nextWeek.deadlineTime.getTime() <= Date.now() &&
-    (live?.started ?? 0) === 0;
+  const gameweekUnderway =
+    !seasonStarted && nextWeek !== undefined && nextWeek.deadlineTime.getTime() <= Date.now();
+
+  /** Begun, but nothing kicked off yet: squads frozen, table level. */
+  const liveLocked = gameweekUnderway && (live?.started ?? 0) === 0;
+
+  /** Begun, matches played, none on at this moment. */
+  const liveBetween = gameweekUnderway && !liveLocked && !liveInPlay;
 
   return {
     live,
@@ -701,17 +727,20 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     status: {
       settled: seasonStarted && !provisional && !liveInPlay,
       live: liveInPlay,
+      provisional: Boolean(provisional) || liveInPlay || liveLocked || liveBetween,
       label: liveInPlay
         ? `GW ${live!.event} LIVE · PROVISIONAL`
         : provisional
           ? `GW ${provisional.event} PROVISIONAL`
           : liveLocked
-            ? // nextWeek, not live — this state exists precisely when the live
-              // fetch has failed, so reading through it would crash the page.
+            ? // nextWeek, not live — these states exist precisely when the live
+              // fetch may have failed, so reading through it would crash.
               `GW ${nextWeek!.event} LOCKED`
-            : seasonStarted
-              ? `GW ${lastSettled} SETTLED`
-              : 'PRESEASON',
+            : liveBetween
+              ? `GW ${nextWeek!.event} · PROVISIONAL`
+              : seasonStarted
+                ? `GW ${lastSettled} SETTLED`
+                : 'PRESEASON',
       sub: liveInPlay
         ? seasonStarted
           ? `GW ${lastSettled} final · GW ${live!.event} still playing`
@@ -720,8 +749,12 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
           ? 'waiting for FPL to apply bonus points'
           : liveLocked
             ? `teams locked · ${live ? `${live.total} fixtures to play` : 'waiting on FPL'}`
-            : !seasonStarted
-              ? 'no gameweeks played yet'
+            : liveBetween
+              ? live
+                ? `${live.fixtures.filter((f) => f.finished).length} of ${live.total} played · nothing final yet`
+                : 'gameweek under way · nothing final yet'
+              : !seasonStarted
+                ? 'no gameweeks played yet'
             : nextWeek
               ? `GW ${nextWeek.event} deadline ${deadlineLabel(nextWeek.deadlineTime, tz)}`
               : 'season complete',

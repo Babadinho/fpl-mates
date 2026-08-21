@@ -47,7 +47,7 @@ export default async function Page() {
                   style={{
                     background: data.status.settled
                       ? 'var(--pop)'
-                      : data.status.live || data.seasonStarted
+                      : data.status.provisional
                         ? 'var(--amber)'
                         : 'var(--dim)',
                   }}
