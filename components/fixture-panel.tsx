@@ -3,6 +3,38 @@
 import { useEffect, useState } from 'react';
 import type { FixtureDetail, FixtureEvent } from '@/lib/fixture';
 
+/** Counts down to kickoff. Null until mounted so both renders agree. */
+function useKickoff(iso: string | null) {
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!iso) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [iso]);
+
+  if (!iso || now === null) return null;
+  const ms = new Date(iso).getTime() - now;
+  if (ms <= 0) return null;
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const days = Math.floor(ms / 86_400_000);
+  const hours = Math.floor(ms / 3_600_000) % 24;
+  const minutes = Math.floor(ms / 60_000) % 60;
+  const seconds = Math.floor(ms / 1000) % 60;
+
+  return days > 0
+    ? `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+    : `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+/** Card colours, deliberately outside the theme. */
+const CARD_COLOUR: Record<string, string> = {
+  Yellow: '#d4a017',
+  Red: '#d81e06',
+};
+
 function EventRow({ event }: { event: FixtureEvent }) {
   return (
     <div className="flex items-center gap-2.5 border-b border-hair py-2.5">
@@ -14,11 +46,27 @@ function EventRow({ event }: { event: FixtureEvent }) {
         {event.club}
       </span>
       <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{event.name}</span>
-      {event.detail && (
-        <span className="flex-none font-mono text-[10px] tracking-[0.06em] text-dim">
-          {event.detail}
+      {typeof event.points === 'number' && event.points !== 0 && (
+        <span className="flex-none font-mono text-[11px] text-dim">
+          {event.points > 0 ? `+${event.points}` : `−${Math.abs(event.points)}`}
         </span>
       )}
+      {event.detail &&
+        (event.detail === 'Yellow' || event.detail === 'Red' ? (
+          <span
+            className="flex-none rounded-[3px] border px-1.5 py-[2px] font-mono text-[9px] tracking-[0.1em] uppercase"
+            // Outlined, per the design. Fixed rather than themed: a yellow card
+            // is yellow whatever ACCENT_COLOR is. Deep enough to stay legible
+            // on a light background and bright enough on a dark one.
+            style={{ borderColor: CARD_COLOUR[event.detail], color: CARD_COLOUR[event.detail] }}
+          >
+            {event.detail}
+          </span>
+        ) : (
+          <span className="flex-none font-mono text-[10px] tracking-[0.06em] text-dim">
+            {event.detail}
+          </span>
+        ))}
     </div>
   );
 }
@@ -57,6 +105,7 @@ export function FixturePanel({
 }) {
   const [detail, setDetail] = useState<FixtureDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const kickoff = useKickoff(detail?.kickoffAt ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +149,7 @@ export function FixturePanel({
         role="dialog"
         aria-modal="true"
         aria-label="Fixture detail"
-        className="fpl-panel relative h-full w-full max-w-full overflow-y-auto overscroll-contain border-l border-line bg-bg px-[18px] pt-[22px] pb-10 shadow-[-24px_0_60px_rgba(12,8,20,0.18)] will-change-transform sm:w-[460px] sm:px-[30px] sm:pt-[30px] sm:pb-[46px]"
+        className="fpl-panel relative h-full w-full max-w-full overflow-y-auto overscroll-contain border-l border-line bg-bg px-[18px] pt-[22px] pb-10 shadow-[-24px_0_60px_rgba(12,8,20,0.18)] will-change-transform sm:w-[460px] sm:px-[30px] sm:pt-[30px] sm:pb-[46px] lg:w-[620px] lg:px-10"
       >
         <div className="flex items-start justify-between gap-5 border-b border-line pb-5">
           <div className="flex flex-col gap-1.5">
@@ -141,12 +190,30 @@ export function FixturePanel({
           </div>
         )}
 
-        {detail && (
+        {detail?.pre && (
+          <div className="flex flex-col gap-3 pt-10 pb-2">
+            <span className="font-mono text-[10px] tracking-[0.16em] text-dim uppercase">
+              Kicks off {detail.kickoffLabel}
+            </span>
+            <h4 className="display m-0 text-[38px] leading-[0.95] tracking-[0.02em]">
+              {kickoff ?? detail.kickoffLabel}
+            </h4>
+            <p className="m-0 mt-1.5 max-w-[38ch] text-[15px] leading-[1.6] text-dim">
+              Nothing is recorded until kickoff. Goals, cards and bonus appear here as the match
+              plays out.
+            </p>
+          </div>
+        )}
+
+        {detail && !detail.pre && (
           <>
             <div className="flex flex-col gap-[26px] pt-[22px]">
               <Section title="Goals" events={detail.goals} empty="None yet." />
               <Section title="Assists" events={detail.assists} empty="None yet." />
               <Section title="Cards" events={detail.cards} empty="None." />
+              {detail.ownGoals.length > 0 && (
+                <Section title="Own goals" events={detail.ownGoals} empty="None." />
+              )}
 
               <div>
                 <Section
@@ -179,8 +246,8 @@ export function FixturePanel({
                       <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
                         {p.name}
                       </span>
-                      <span className="flex-none font-mono text-[10px] tracking-[0.06em] text-dim">
-                        {p.role}
+                      <span className="w-8 flex-none font-mono text-[9px] tracking-[0.1em] text-amber uppercase">
+                        {p.started ? '' : 'Sub'}
                       </span>
                       <span className="w-[34px] flex-none text-right font-mono text-[11px] text-dim">
                         {p.minutes}&apos;
@@ -198,7 +265,7 @@ export function FixturePanel({
             */}
             <p className="mt-3.5 font-mono text-[10px] leading-[1.7] text-dim">
               FPL does not publish the minute an event happened, so these are listed rather than
-              ordered. Anyone who came on and played no minutes will not appear.
+              ordered.
             </p>
           </>
         )}

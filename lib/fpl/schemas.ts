@@ -226,7 +226,29 @@ export const liveElementSchema = z.object({
     // estimate, so it degrades rather than misleads.
     bps: z.number().int().default(0),
     bonus: z.number().int().default(0),
+    // 1 when the player was in the starting XI. Exact, where minutes only
+    // imply it — someone taken off at 70' started but did not play 90.
+    starts: z.number().int().default(0),
   }),
+  /**
+   * Why the player scored what they did, per fixture: minutes, goals, cards
+   * and so on, each with the points it was worth. Authoritative — a yellow is
+   * −1 today but that is FPL's rule to change, not ours to assume.
+   */
+  explain: z
+    .array(
+      z.object({
+        fixture: z.number().int(),
+        stats: z.array(
+          z.object({
+            identifier: z.string(),
+            points: z.number().int(),
+            value: z.number().int(),
+          }),
+        ),
+      }),
+    )
+    .default([]),
 });
 
 export const liveEventSchema = z.object({
