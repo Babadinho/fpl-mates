@@ -533,7 +533,10 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
    * leaving a gap where the winners will be. It runs from the first deadline
    * until the first gameweek settles — most of a weekend.
    */
-  const nothingScored = seasonRows.every((r) => r.points === 0);
+  // Settled gameweeks only. The season table includes live points, so testing
+  // it would make this vanish the moment the first goal went in — which is
+  // precisely the gap it exists to fill.
+  const nothingScored = settledWeeks.length === 0;
 
   let hero: LeaderboardView['hero'] = null;
 
@@ -545,10 +548,16 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         label: `Gameweek ${nextWeek.event} winner`,
         name: 'To be decided',
         value: liveState ? `${liveState.total} fixtures` : 'not started',
-        sub: 'waiting for kickoff',
-        // Null when FPL is unreachable, in which case the cell just reads
-        // "waiting for kickoff" rather than counting down to nothing.
-        countdownTo: liveState?.fixtures.find((f) => !f.started)?.kickoff ?? null,
+        sub: liveState?.started
+          ? `${liveState.started} of ${liveState.total} under way`
+          : 'waiting for kickoff',
+        // Only before anything kicks off. Once a match is on, the next
+        // unstarted fixture may be days away, and counting down to it beside a
+        // game in progress reads as a stopped clock.
+        countdownTo:
+          liveState && liveState.started === 0
+            ? (liveState.fixtures.find((f) => !f.started)?.kickoff ?? null)
+            : null,
       },
       month: {
         label: `${monthLabel(nextWeek.monthKey, tz)} winner`,
