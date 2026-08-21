@@ -181,7 +181,13 @@ export function SquadPanel({
               }`}
             >
               Gameweek {event}
-              {squad?.live ? ' · in play' : squad?.state === 'pending' ? ' · not yet picked' : ''}
+              {squad?.state === 'locked'
+                ? ' · locked'
+                : squad?.live
+                  ? ' · in play'
+                  : squad?.state === 'pending'
+                    ? ' · not yet picked'
+                    : ''}
             </span>
             <h2 className="display m-0 text-[36px] leading-[0.95] tracking-[0.02em]">
               {squad?.name ?? name}
@@ -225,17 +231,7 @@ export function SquadPanel({
           </div>
         )}
 
-        {squad?.state === 'locked' && (
-          <div className="flex flex-col gap-3 pt-11 pb-2">
-            <h3 className="display m-0 text-[30px] tracking-[0.02em]">No points yet</h3>
-            <p className="m-0 max-w-[40ch] text-[15px] leading-[1.6] text-dim">
-              The deadline has passed and this squad is locked, but no fixture has kicked off.
-              Points, minutes and bonus appear as matches start.
-            </p>
-          </div>
-        )}
-
-        {squad?.state === 'ready' && (
+        {(squad?.state === 'ready' || squad?.state === 'locked') && (
           <>
             <div className="grid grid-cols-4 gap-px border-b border-line bg-line">
               <Stat label="Gross" value={String(squad.gross)} />
@@ -270,9 +266,11 @@ export function SquadPanel({
             ))}
 
             <p className="mt-5 font-mono text-[11px] leading-[1.7] text-dim">
-              {squad.live
-                ? 'Points and bonus are provisional while fixtures are in play.'
-                : 'Final. Bonus confirmed by FPL.'}
+              {squad.state === 'locked'
+                ? 'Locked in. No fixture has kicked off, so everyone is on zero until matches start.'
+                : squad.live
+                  ? 'Points and bonus are provisional while fixtures are in play.'
+                  : 'Final. Bonus confirmed by FPL.'}
             </p>
           </>
         )}
