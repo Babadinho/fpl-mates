@@ -253,7 +253,18 @@ const schema = z.object({
    * people opening the page at once costs twenty upstream requests for
    * identical data.
    */
-  LIVE_CACHE_SECONDS: z.coerce.number().int().min(0).max(300).default(30),
+  /**
+   * Share one live fetch across concurrent visitors. Off by default.
+   *
+   * Next's `revalidate` is stale-while-revalidate: it serves the cached copy
+   * and refetches behind it, so whoever arrives after it expires sees the OLD
+   * scores while the new ones load — and the page stamps them "just now". On a
+   * live score page that reads as broken, and it was.
+   *
+   * Set it only if you have enough simultaneous viewers to care about two
+   * requests per page render, and accept that they may be one interval behind.
+   */
+  LIVE_CACHE_SECONDS: z.coerce.number().int().min(0).max(300).default(0),
   /** bootstrap-static is large and near-static; cache it hard. */
   BOOTSTRAP_CACHE_HOURS: z.coerce.number().int().min(1).max(168).default(24),
   /** If set, /api/poll requires `Authorization: Bearer <secret>`. */

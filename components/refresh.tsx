@@ -3,6 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 
+/** Below this, returning to the tab is a glance rather than a gap. */
+const STALE_AFTER_MS = 20_000;
+
 function label(refreshing: boolean, fetchedAt: string): string {
   if (refreshing) return 'Refreshing';
   const minutes = Math.floor((Date.now() - new Date(fetchedAt).getTime()) / 60_000);
@@ -23,6 +26,8 @@ export function Refresh({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+
+  const refresh = () => startTransition(() => router.refresh());
   const [mounted, setMounted] = useState(false);
   const [, tick] = useState(0);
 
@@ -38,10 +43,30 @@ export function Refresh({
     if (!intervalSeconds) return;
     const id = setInterval(() => {
       // Skip while backgrounded.
-      if (document.visibilityState === 'visible') router.refresh();
+      if (document.visibilityState === 'visible') refresh();
     }, intervalSeconds * 1000);
     return () => clearInterval(id);
   }, [intervalSeconds, router]);
+
+  /**
+   * Coming back to the tab refetches, without waiting to be asked.
+   *
+   * Somebody who left the page during a match and returned would otherwise be
+   * reading scores from whenever they left, under a label saying they were
+   * current. Throttled, so flicking between tabs does not refetch each time.
+   */
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const age = Date.now() - new Date(fetchedAt).getTime();
+      if (age > STALE_AFTER_MS) refresh();
+    };
+
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+    // `refresh` closes over router only, which is stable for a mounted route.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchedAt]);
 
   return (
     <div className="flex items-center gap-2.5">
@@ -50,7 +75,7 @@ export function Refresh({
       </span>
       <button
         type="button"
-        onClick={() => !pending && startTransition(() => router.refresh())}
+        onClick={() => !pending && refresh()}
         disabled={pending}
         title="Refresh scores"
         aria-label="Refresh scores"
