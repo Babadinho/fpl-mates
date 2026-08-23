@@ -271,7 +271,9 @@ export function SquadPanel({
             ))}
 
             <h3 className="mt-[26px] mb-1 font-mono text-[10px] font-normal tracking-[0.16em] text-dim uppercase">
-              {squad.chip === 'Bench Boost' ? 'Bench Boost — all four score' : 'Substitutes, in order'}
+              {squad.chip === 'Bench Boost'
+                ? 'Bench Boost — all four score'
+                : 'Bench, in order'}
             </h3>
             {squad.bench.map((p, i) => (
               <Row key={`${p.name}-${i}`} player={p} />

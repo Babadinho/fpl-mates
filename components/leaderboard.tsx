@@ -17,8 +17,21 @@ const BASE_TABS: { key: Tab; label: string }[] = [
   { key: 'history', label: 'History' },
 ];
 
-/** Grid is shared by the header row and every body row so columns line up. */
-const GRID = 'grid grid-cols-[44px_minmax(0,1fr)_72px_88px] sm:grid-cols-[44px_minmax(0,1fr)_96px_96px_104px]';
+/**
+ * Grid is shared by the header row and every body row so columns line up.
+ *
+ * Written out per column count rather than built from a template: Tailwind
+ * only ships classes it can see in the source, so an interpolated one would
+ * come out unstyled.
+ *
+ * Below 640px only the first two numeric columns fit, whatever the count.
+ */
+const GRIDS: Record<number, string> = {
+  3: 'grid grid-cols-[44px_minmax(0,1fr)_72px_88px] sm:grid-cols-[44px_minmax(0,1fr)_96px_96px_104px]',
+  4: 'grid grid-cols-[44px_minmax(0,1fr)_72px_88px] sm:grid-cols-[44px_minmax(0,1fr)_88px_88px_88px_92px]',
+};
+
+const gridFor = (columns: number) => GRIDS[columns] ?? GRIDS[3];
 
 function PagerButton({
   label,
@@ -88,7 +101,7 @@ function Row({ row, onOpen }: { row: UiRow; onOpen?: () => void }) {
             }
           : undefined
       }
-      className={`${GRID} items-center border-b border-hair px-3.5 py-[15px] transition-colors duration-[120ms] hover:bg-hover ${
+      className={`${gridFor(row.cells.length)} items-center border-b border-hair px-3.5 py-[15px] transition-colors duration-[120ms] hover:bg-hover ${
         onOpen ? 'cursor-pointer' : ''
       }`}
     >
@@ -113,10 +126,19 @@ function Row({ row, onOpen }: { row: UiRow; onOpen?: () => void }) {
         )}
       </div>
 
-      <div className="text-right font-mono text-[16px]">{row.c0}</div>
-      <div className="text-right font-mono text-[13px] text-dim">{row.c1}</div>
-      {/* Below 640px the table drops to two numeric columns. */}
-      <div className="hidden text-right font-mono text-[13px] text-dim sm:block">{row.c2}</div>
+      {row.cells.map((cell, i) => (
+        <div
+          key={i}
+          className={
+            i === 0
+              ? 'text-right font-mono text-[16px]'
+              : // Below 640px the table drops to two numeric columns.
+                `text-right font-mono text-[13px] text-dim ${i > 1 ? 'hidden sm:block' : ''}`
+          }
+        >
+          {cell}
+        </div>
+      ))}
     </div>
   );
 }
@@ -186,12 +208,14 @@ function Table({
         </div>
       </div>
 
-      <div className={`${GRID} border-b border-line px-3.5 pb-2.5`}>
+      <div className={`${gridFor(view.headers.length)} border-b border-line px-3.5 pb-2.5`}>
         <div className="label">#</div>
         <div className="label">Manager</div>
-        <div className="label text-right">{view.headers[0]}</div>
-        <div className="label text-right">{view.headers[1]}</div>
-        <div className="label hidden text-right sm:block">{view.headers[2]}</div>
+        {view.headers.map((header, i) => (
+          <div key={header} className={`label text-right ${i > 1 ? 'hidden sm:block' : ''}`}>
+            {header}
+          </div>
+        ))}
       </div>
 
       {rows.length === 0 ? (

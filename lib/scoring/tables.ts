@@ -14,6 +14,8 @@ export interface ScoreRow {
   grossPoints: number;
   transferCost: number;
   pointsOnBench: number;
+  /** Bonus inside grossPoints. Zero when it was never recorded. */
+  bonus?: number;
   overallRank: number | null;
   chipUsed: string | null;
 }
@@ -34,6 +36,8 @@ export interface Aggregate {
   /** Transfer points deducted, summed. Always positive. */
   hits: number;
   bench: number;
+  /** Bonus inside `gross`, summed. */
+  bonus: number;
   /** Most recent overall FPL rank in the range, or null. */
   overallRank: number | null;
   /** How many gameweeks contributed. */
@@ -92,6 +96,7 @@ export function aggregate(
       gross: 0,
       hits: 0,
       bench: 0,
+      bonus: 0,
       overallRank: null,
       gameweeks: 0,
       best: 0,
@@ -113,6 +118,7 @@ export function aggregate(
     acc.gross += row.grossPoints;
     acc.hits += row.transferCost;
     acc.bench += row.pointsOnBench;
+    acc.bonus += row.bonus ?? 0;
     acc.gameweeks += 1;
     acc.best = Math.max(acc.best, scored);
     // Rows are event-ordered, so the last write is the latest rank.

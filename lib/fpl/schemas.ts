@@ -271,6 +271,17 @@ export const pickSchema = z.object({
   is_vice_captain: z.boolean().default(false),
 });
 
+/**
+ * A substitution FPL applied once the gameweek ended.
+ *
+ * Empty until then, so it is defaulted rather than required — the live table
+ * reads picks long before this array has anything in it.
+ */
+export const automaticSubSchema = z.object({
+  element_in: z.number().int(),
+  element_out: z.number().int(),
+});
+
 export const entryPicksSchema = z.object({
   active_chip: z.string().nullable(),
   entry_history: z.object({
@@ -278,6 +289,7 @@ export const entryPicksSchema = z.object({
     event_transfers_cost: z.number().int(),
   }),
   picks: z.array(pickSchema),
+  automatic_subs: z.array(automaticSubSchema).default([]),
 });
 
 export type FplPick = z.infer<typeof pickSchema>;

@@ -218,12 +218,20 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
   for (const entry of picks) {
     let points = 0;
     let bonus = 0;
+    let bench = 0;
 
     entry.elementIds.forEach((elementId, index) => {
       const multiplier = entry.multipliers[index] ?? 0;
       // Auto-substitutions are only applied when the gameweek ends, so a live
       // table counts the starting XI exactly as picked.
-      if (multiplier === 0) return;
+      //
+      // A benched player's points are tracked but never added: they only count
+      // under Bench Boost, and that gives every pick a multiplier of 1, so
+      // this branch is not reached for them.
+      if (multiplier === 0) {
+        bench += stats.get(elementId)?.total_points ?? 0;
+        return;
+      }
 
       points += (stats.get(elementId)?.total_points ?? 0) * multiplier;
 
@@ -245,7 +253,8 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
       event,
       grossPoints: points,
       transferCost: entry.transferCost,
-      pointsOnBench: 0,
+      pointsOnBench: bench,
+      bonus,
       overallRank: null,
       chipUsed: entry.activeChip ? (CHIP_LABELS[entry.activeChip] ?? null) : null,
     });

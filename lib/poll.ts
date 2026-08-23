@@ -24,6 +24,7 @@ import { gameweeks, gwScores, managers, monthlyWinners, pollRuns, weeklyWinners 
 import { fetchEntryHistory, mapWithConcurrency } from './fpl/client';
 import { CHIP_LABELS, type FplHistoryEntry } from './fpl/schemas';
 import { warmPicks } from './live';
+import { settleEntries } from './settle';
 import { declareWinner, monthlyTable, pointsAfterCost, weeklyTable, type ManagerRef, type ScoreRow } from './scoring/tables';
 import { syncReferenceData } from './sync';
 import { announce } from './telegram/client';
@@ -189,6 +190,23 @@ export async function runPoll(): Promise<PollResult> {
         continue;
       }
 
+      // How much of each score was bonus. Only knowable by joining the live
+      // feed to the picks, so it is worked out here once and stored — a table
+      // rendered in May must not refetch a gameweek played in August.
+      //
+      // Never fatal: a gameweek with no bonus breakdown is still correctly
+      // scored, and blocking settlement on it would hold up the winner.
+      let bonusOf = new Map<number, number>();
+      try {
+        const settled = await settleEntries(
+          rows.map((r) => r.entryId),
+          week.event,
+        );
+        bonusOf = new Map(settled.map((s) => [s.entryId, s.bonus]));
+      } catch {
+        bonusOf = new Map();
+      }
+
       await db
         .insert(gwScores)
         .values(
@@ -199,6 +217,7 @@ export async function runPoll(): Promise<PollResult> {
             transferCost: row.transferCost,
             points: pointsAfterCost(row),
             pointsOnBench: row.pointsOnBench,
+            bonus: bonusOf.get(row.entryId) ?? 0,
             overallRank: row.overallRank,
             chipUsed: row.chipUsed,
           })),
@@ -210,6 +229,8 @@ export async function runPoll(): Promise<PollResult> {
             transferCost: sql`excluded.transfer_cost`,
             points: sql`excluded.points`,
             pointsOnBench: sql`excluded.points_on_bench`,
+            // Keeps a stored figure when a reprocess could not fetch one.
+            bonus: sql`greatest(excluded.bonus, ${gwScores.bonus})`,
             overallRank: sql`excluded.overall_rank`,
             chipUsed: sql`excluded.chip_used`,
             fetchedAt: sql`now()`,

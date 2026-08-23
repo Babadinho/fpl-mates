@@ -17,9 +17,7 @@ function row(over: Partial<UiRow> & Pick<UiRow, 'rank' | 'name'>): UiRow {
     chip: null,
     isLeader: false,
     shared: false,
-    c0: '70',
-    c1: '—',
-    c2: '0',
+    cells: ['70', '+0', '—'],
     ...over,
   };
 }
@@ -28,11 +26,11 @@ function view(over: Partial<LeaderboardView> = {}): LeaderboardView {
   const table: TableView = {
     title: 'Gameweek 5',
     meta: '3 managers · avg 60',
-    headers: ['Points', 'Hits', 'Bench'],
+    headers: ['Points', 'Bonus', 'Hits'],
     note: 'note',
     rows: [
-      row({ rank: '01', name: 'Alice', c0: '90' }),
-      row({ rank: '02', name: 'Bob', c0: '70' }),
+      row({ rank: '01', name: 'Alice', cells: ['90', '+0', '—'] }),
+      row({ rank: '02', name: 'Bob', cells: ['70', '+0', '—'] }),
     ],
   };
   return {
@@ -80,8 +78,8 @@ describe('formatting', () => {
             headers: ['Points', 'Hits', 'Bench'],
             note: '',
             rows: [
-              row({ rank: '01', name: 'Alice', c0: '90' }),
-              row({ rank: '01', name: 'Bob', c0: '90' }),
+              row({ rank: '01', name: 'Alice', cells: ['90', '+0', '—'] }),
+              row({ rank: '01', name: 'Bob', cells: ['90', '+0', '—'] }),
             ],
           },
         },
@@ -104,7 +102,7 @@ describe('formatting', () => {
             meta: '',
             headers: ['Points', 'Hits', 'Bench'],
             note: '',
-            rows: [row({ rank: '01', name: 'A.B-C!', c0: '90' })],
+            rows: [row({ rank: '01', name: 'A.B-C!', cells: ['90', '+0', '—'] })],
           },
         },
       ],

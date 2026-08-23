@@ -54,10 +54,15 @@ function rowsToLines(view: TableView): string[] {
   const shown = view.rows.slice(0, ROW_LIMIT);
   const nameWidth = Math.max(...shown.map((r) => Math.min(r.name.length, 16)), 6);
 
+  // Hits by name, not position: it is the column that explains a low score,
+  // and the table reorders its columns depending on what is being shown.
+  const hits = view.headers.indexOf('Hits');
+
   const lines = shown.map((r) => {
-    const extra = r.c1 && r.c1 !== '—' ? r.c1.padStart(4) : '';
+    const cell = hits > 0 ? r.cells[hits] : undefined;
+    const extra = cell && cell !== '—' ? cell.padStart(4) : '';
     return codeRow(
-      `${String(Number(r.rank)).padStart(2)}  ${pad(r.name, nameWidth)}  ${r.c0.padStart(3)}${extra}`,
+      `${String(Number(r.rank)).padStart(2)}  ${pad(r.name, nameWidth)}  ${r.cells[0].padStart(3)}${extra}`,
     );
   });
 
@@ -207,7 +212,7 @@ export function formatSettled(data: LeaderboardView, event: number): string {
 
   return [
     `*${escape(headline)}*`,
-    escape(`${winner.c0} points`),
+    escape(`${winner.cells[0]} points`),
     '',
     ...rowsToLines(view),
     '',

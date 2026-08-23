@@ -91,6 +91,14 @@ export const gwScores = pgTable('gw_scores', {
    */
   points: smallint('points').notNull(),
   pointsOnBench: smallint('points_on_bench').notNull().default(0),
+  /**
+   * Bonus inside `grossPoints`, captain multiplier applied.
+   *
+   * Stored rather than derived: the history endpoint has no bonus field, and
+   * recomputing it needs the live feed joined to post-settlement picks. Zero on
+   * rows written before this column existed, which is why the backfill exists.
+   */
+  bonus: smallint('bonus').notNull().default(0),
   /** Overall FPL rank after this gameweek. Needed for the overall_rank tie-break. */
   overallRank: integer('overall_rank'),
   /** FH / BB / TC / WC, or null. Sourced from the `chips` array. */

@@ -6,7 +6,7 @@
  * data and only decides which tab to show — no fetching, no scoring.
  */
 import { asc, desc, eq, inArray } from 'drizzle-orm';
-import { getConfig, TIEBREAK_LABELS } from './config';
+import { getConfig, TIEBREAK_LABELS, type TiebreakKey } from './config';
 import { getDb } from './db';
 import { gameweeks, league, managers as managersTable, gwScores, pollRuns } from './db/schema';
 import { mockLeague } from './fixtures/mock';
@@ -30,9 +30,8 @@ export interface UiRow {
   chip: string | null;
   isLeader: boolean;
   shared: boolean;
-  c0: string;
-  c1: string;
-  c2: string;
+  /** Numeric columns, in header order. Three normally, four with bench shown. */
+  cells: string[];
 }
 
 export interface TableView {
@@ -40,9 +39,22 @@ export interface TableView {
   meta: string;
   /** True when the figures include a gameweek that is still being played. */
   provisional?: boolean;
-  headers: [string, string, string];
+  headers: string[];
   note: string;
   rows: UiRow[];
+}
+
+export interface WinnerFigures {
+  gross: number;
+  hits: number;
+  bench: number;
+  gameweeks: number;
+  /** Best single gameweek in the range, after costs. */
+  best: number;
+  /** Gameweeks this manager has won outright or shared. Season card only. */
+  weeksWon: number;
+  /** The rule that separated first from second, or null if won on points. */
+  decidedBy: TiebreakKey | null;
 }
 
 export interface HeroCell {
@@ -83,6 +95,18 @@ export interface LeaderboardView {
     polled: string;
   };
   hero: { week: HeroCell; month: HeroCell; season: HeroCell } | null;
+  /**
+   * The figures behind each hero cell, for the share card.
+   *
+   * Tables show three columns; a card shows more, and gross, best gameweek and
+   * weeks won are not among them. Taken from the same scoring rows the tables
+   * are built from, so a shared card cannot disagree with the page.
+   */
+  winners: {
+    weekly: WinnerFigures | null;
+    monthly: WinnerFigures | null;
+    season: WinnerFigures | null;
+  } | null;
   weekly: { event: number; label: string; view: TableView }[];
   monthly: { key: string; label: string; short: string; view: TableView }[];
   season: TableView;
@@ -234,6 +258,7 @@ async function fromDatabase(): Promise<SourceData> {
       grossPoints: s.grossPoints,
       transferCost: s.transferCost,
       pointsOnBench: s.pointsOnBench,
+      bonus: s.bonus,
       overallRank: s.overallRank,
       chipUsed: s.chipUsed,
     })),
@@ -252,7 +277,7 @@ async function fromDatabase(): Promise<SourceData> {
 
 function toUiRows(
   rows: RankedRow[],
-  cells: (row: RankedRow) => [string, string, string],
+  cells: (row: RankedRow) => string[],
   /**
    * Everyone is on zero, so the order is arbitrary. Numbering it 01, 02, 03
    * would invent a standing that does not exist, and mark somebody leader for
@@ -268,9 +293,7 @@ function toUiRows(
     chip: row.chip,
     isLeader: !unranked && row.rank === 1,
     shared: row.shared,
-    c0: cells(row)[0],
-    c1: cells(row)[1],
-    c2: cells(row)[2],
+    cells: cells(row),
   }));
 }
 
@@ -407,7 +430,20 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     ? ''
     : ' Managers score only from the gameweek they joined.';
 
-  /* ---- weekly */
+  /* ---- weekly
+   *
+   * One shape for both the live and the settled table. Bench is a genuine
+   * extra column rather than a blanked one, so turning it off removes it.
+   */
+  const showBench = cfg.site.showBenchColumn;
+  const weeklyHeaders = ['Points', 'Bonus', 'Hits', ...(showBench ? ['Bench'] : [])];
+  const weeklyCells = (r: RankedRow) => [
+    String(r.points),
+    r.bonus ? `+${r.bonus}` : '+0',
+    r.hits ? `−${r.hits}` : '—',
+    ...(showBench ? [String(r.bench)] : []),
+  ];
+
   const weekly = settledWeeks.map((event) => {
     const rows = weeklyTable(source.scores, source.managers, event, options);
     const average = rows.length
@@ -420,7 +456,9 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       view: {
         title: `Gameweek ${event}`,
         meta: `${rows.length} manager${rows.length === 1 ? '' : 's'} · avg ${average}`,
-        headers: ['Points', 'Hits', 'Bench'] as [string, string, string],
+        // Matches the live table, so the columns do not rearrange under
+        // people the moment a gameweek settles.
+        headers: weeklyHeaders,
         // Plain English on purpose — this footnote exists to settle arguments,
         // so it must be both understandable AND accurate. Free transfers bank
         // up to five, and Wildcard/Free Hit weeks cost nothing, so "4 points
@@ -429,11 +467,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
           `Points shown are your score after transfer costs. FPL takes 4 points for each ` +
           `transfer beyond your free ones; Wildcard and Free Hit gameweeks cost nothing. ` +
           `${tiebreakNote}${prejoinNote}`,
-        rows: toUiRows(rows, (r) => [
-          String(r.points),
-          r.hits ? `−${r.hits}` : '—',
-          cfg.site.showBenchColumn ? String(r.bench) : '—',
-        ]),
+        rows: toUiRows(rows, (r) => weeklyCells(r)),
       },
     };
   });
@@ -507,12 +541,16 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   const nameOf = (entryId: number) =>
     source.managers.find((m) => m.entryId === entryId)?.playerName ?? 'Unknown';
 
+  /** Weekly wins per manager, tallied while walking the weeks below. */
+  const weeksWon = new Map<number, number>();
+
   const history = {
     weekly: [...weekly]
       .reverse()
       .map(({ event }) => {
         const rows = weeklyTable(source.scores, source.managers, event, options);
         const winner = declareWinner(rows, cfg.rules.tiebreakOrder);
+        if (winner) weeksWon.set(winner.entryId, (weeksWon.get(winner.entryId) ?? 0) + 1);
         return winner
           ? { gw: `GW ${pad(event)}`, name: nameOf(winner.entryId), pts: winner.points }
           : null;
@@ -552,6 +590,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   const nothingScored = settledWeeks.length === 0;
 
   let hero: LeaderboardView['hero'] = null;
+  let winners: LeaderboardView['winners'] = null;
 
   if (nothingScored && nextWeek) {
     const inMonth = allMonths.get(nextWeek.monthKey)?.length ?? 0;
@@ -593,15 +632,39 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       },
     };
   } else if (seasonStarted && lastSettled !== null) {
-    const weekWinner = declareWinner(
-      weeklyTable(source.scores, source.managers, lastSettled, options),
-      cfg.rules.tiebreakOrder,
-    );
+    const weekRows = weeklyTable(source.scores, source.managers, lastSettled, options);
+    const weekWinner = declareWinner(weekRows, cfg.rules.tiebreakOrder);
     const currentMonthKey = source.weeks.find((w) => w.event === lastSettled)!.monthKey;
     const monthEvents = months.get(currentMonthKey)!.map((w) => w.event);
     const monthRows = monthlyTable(source.scores, source.managers, monthEvents, options);
     const monthLeader = monthRows[0];
     const seasonLeader = seasonRows[0];
+
+    const monthWinner = declareWinner(monthRows, cfg.rules.tiebreakOrder);
+    const seasonWinner = declareWinner(seasonRows, cfg.rules.tiebreakOrder);
+
+    const figures = (row: RankedRow | undefined | null, by: TiebreakKey | null = null) =>
+      row
+        ? {
+            gross: row.gross,
+            hits: row.hits,
+            bench: row.bench,
+            gameweeks: row.gameweeks,
+            best: row.best,
+            weeksWon: weeksWon.get(row.entryId) ?? 0,
+            decidedBy: by,
+          }
+        : null;
+
+    // The tiebreak may not pick row zero, so find the row it actually named.
+    winners = {
+      weekly: figures(
+        weekRows.find((r) => r.entryId === weekWinner?.entryId),
+        weekWinner?.decidedBy ?? null,
+      ),
+      monthly: figures(monthLeader, monthWinner?.decidedBy ?? null),
+      season: figures(seasonLeader, seasonWinner?.decidedBy ?? null),
+    };
 
     hero = {
       week: {
@@ -673,19 +736,13 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
                   // Only an estimate while a started fixture is still waiting
                   // on its bonus. Once FPL has awarded them all, the column is
                   // the real thing and should not still say otherwise.
-                  headers: ['Points', state.bonusPending ? 'Est. bonus' : 'Bonus', 'Hits'],
+                  headers: weeklyHeaders.map((h, i) =>
+                    i === 1 && state.bonusPending ? 'Est. bonus' : h,
+                  ),
                   note:
                     'Provisional. Bonus is estimated from live match scores and can still ' +
                     'change; no winner is recorded until FPL confirms the final points.',
-                  rows: toUiRows(
-                    table,
-                    (r) => [
-                      String(r.points),
-                      `+${state.provisionalBonus.get(r.entryId) ?? 0}`,
-                      r.hits ? `−${r.hits}` : '—',
-                    ],
-                    state.started === 0,
-                  ),
+                  rows: toUiRows(table, (r) => weeklyCells(r), state.started === 0),
                 },
         };
       }
@@ -771,6 +828,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       polled: relativeTime(source.lastPolled),
     },
     hero,
+    winners,
     weekly,
     monthly,
     season,

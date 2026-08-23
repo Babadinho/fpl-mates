@@ -50,6 +50,13 @@
       "when": 1786998153991,
       "tag": "0006_pick_captain_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787513515538,
+      "tag": "0007_gw_scores_bonus",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "gw_scores" ADD COLUMN "bonus" smallint DEFAULT 0 NOT NULL;

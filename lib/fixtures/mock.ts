@@ -122,6 +122,8 @@ export function mockScores(managers: ManagerRef[] = mockManagers()): ScoreRow[] 
         grossPoints,
         transferCost,
         pointsOnBench: Math.round(random() * 19),
+        // Rough share of a real score: a handful of players pick up bonus.
+        bonus: Math.round(random() * 12),
         overallRank: Math.round(150_000 + random() * 900_000),
         chipUsed: chip && chip[0] === i ? chip[1] : null,
       });
