@@ -63,7 +63,12 @@ export default async function Page() {
         </header>
 
         {/* ------------------------------------------------------ hero strip */}
-        {data.hero ? <Hero hero={[data.hero.week, data.hero.month, data.hero.season]} /> : null}
+        {data.hero ? (
+          <Hero
+            hero={[data.hero.week, data.hero.month, data.hero.season]}
+            canShare={data.seasonStarted}
+          />
+        ) : null}
 
         <Leaderboard data={data} />
 
