@@ -46,8 +46,6 @@ export interface FixtureDetail {
   goals: FixtureEvent[];
   assists: FixtureEvent[];
   cards: FixtureEvent[];
-  /** Kept apart from cards: not a booking, and it flatters the wrong side. */
-  ownGoals: FixtureEvent[];
   bonus: FixtureEvent[];
   /** Confirmed once FPL awards it; estimated from BPS until then. */
   bonusConfirmed: boolean;
@@ -165,13 +163,19 @@ export async function getFixtureDetail(
     kickoffLabel: kickoff,
     home,
     away,
-    goals: rows('goals_scored', (v) => (v > 1 ? `×${v}` : '')),
+    // Own goals belong here, not in a section of their own: they are on the
+    // scoreline, so a goals list without them does not add up to the score.
+    // Labelled, and credited to the player who put it in — which is the club
+    // that did not benefit, exactly as football reports it.
+    goals: [
+      ...rows('goals_scored', (v) => (v > 1 ? `×${v}` : '')),
+      ...rows('own_goals', (v) => (v > 1 ? `Own goal ×${v}` : 'Own goal'), true),
+    ],
     assists: rows('assists', (v) => (v > 1 ? `×${v}` : '')),
     cards: [
       ...rows('yellow_cards', () => 'Yellow', true),
       ...rows('red_cards', () => 'Red', true),
     ],
-    ownGoals: rows('own_goals', (v) => (v > 1 ? `×${v}` : ''), true),
     bonus,
     bonusConfirmed,
     lineups: [

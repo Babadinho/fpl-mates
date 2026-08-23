@@ -54,7 +54,11 @@ function EventRow({ event }: { event: FixtureEvent }) {
         </span>
       )}
       {event.detail &&
-        (event.detail === 'Yellow' || event.detail === 'Red' ? (
+        (event.detail.startsWith('Own goal') ? (
+          <span className="flex-none rounded-[3px] border border-line px-1.5 py-[2px] font-mono text-[9px] tracking-[0.1em] text-dim uppercase">
+            {event.detail}
+          </span>
+        ) : event.detail === 'Yellow' || event.detail === 'Red' ? (
           <span
             className="flex-none rounded-[3px] border px-1.5 py-[2px] font-mono text-[9px] tracking-[0.1em] uppercase"
             // Outlined, per the design. Fixed rather than themed: a yellow card
@@ -213,9 +217,6 @@ export function FixturePanel({
               <Section title="Goals" events={detail.goals} empty="None yet." />
               <Section title="Assists" events={detail.assists} empty="None yet." />
               <Section title="Cards" events={detail.cards} empty="None." />
-              {detail.ownGoals.length > 0 && (
-                <Section title="Own goals" events={detail.ownGoals} empty="None." />
-              )}
 
               <div>
                 <Section
