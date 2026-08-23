@@ -211,8 +211,14 @@ const schema = z.object({
    * a private thing among friends, not something to be found by strangers.
    */
   ALLOW_INDEXING: boolEnv(false),
-  /** Show the bench-points column in tables (the prototype's `showBench` prop). */
-  SHOW_BENCH_COLUMN: boolEnv(true),
+  /**
+   * Adds a bench-points column to the weekly table.
+   *
+   * Off by default: those points never counted, unless the manager played
+   * Bench Boost, so the column invites an argument about a number that did
+   * not affect anybody's score.
+   */
+  SHOW_BENCH_COLUMN: boolEnv(false),
   /**
    * Search box above the table. `auto` shows it only once the league is larger
    * than one page — a five-manager league has nothing to search for.
