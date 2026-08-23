@@ -194,6 +194,10 @@ export async function GET(request: Request) {
     {
       width: SIZE,
       height: SIZE,
+      // The browser only receives a PNG and cannot know who won, so the name
+      // is built here. Content-Disposition would not survive the fetch the
+      // preview does, so it travels as its own header.
+      headers: { 'x-share-filename': card.filename },
       fonts: [
         { name: 'display', data: bebas, style: 'normal', weight: 400 },
         { name: 'mono', data: mono, style: 'normal', weight: 500 },

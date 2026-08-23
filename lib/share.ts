@@ -37,6 +37,8 @@ export interface ShareCard {
   chaseLabel: string;
   chase: { rank: string; name: string; points: string }[];
   footer: string;
+  /** Download name. Carries the period so each card is a separate file. */
+  filename: string;
 }
 
 /**
@@ -60,6 +62,31 @@ function orZero(value: string): string {
 /** Hits are stored positive and always read as a deduction. */
 function deducted(hits: number): string {
   return hits ? `−${hits}` : '0';
+}
+
+/**
+ * One filename part, reduced to ASCII.
+ *
+ * Manager names carry apostrophes, accents and occasionally scripts that do
+ * not transliterate at all, and this travels in an HTTP header, which is
+ * bytes rather than text. Anything that survives none of that drops out.
+ */
+export function slug(text: string): string {
+  return text
+    // NFKD splits an accented letter into letter plus mark, so dropping the
+    // marks keeps the letter rather than turning the whole name into dashes.
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
+
+/** Joins the parts that survived slugging, so a dropped one leaves no gap. */
+function filenameOf(...parts: string[]): string {
+  const kept = parts.map(slug).filter(Boolean);
+  return `${kept.join('-') || 'winner'}.png`;
 }
 
 /** Everyone below the winner, which is the part people actually read. */
@@ -122,6 +149,7 @@ export async function getShareCard(
       chaseLabel: 'Next best',
       chase: chasing(latest.view),
       footer: footerFor(figures?.decidedBy),
+      filename: filenameOf(league, `gw${latest.event}`, 'winner', top.name),
     };
   }
 
@@ -153,6 +181,12 @@ export async function getShareCard(
       chaseLabel: 'Also in the running',
       chase: chasing(latest.view),
       footer: footerFor(figures?.decidedBy),
+      filename: filenameOf(
+        league,
+        latest.label,
+        latest.view.provisional ? 'leader' : 'winner',
+        top.name,
+      ),
     };
   }
 
@@ -189,5 +223,6 @@ export async function getShareCard(
     chaseLabel: complete ? 'Final top four' : 'Also in the running',
     chase: chasing(view.season),
     footer: footerFor(view.winners?.season?.decidedBy),
+    filename: filenameOf(league, season, 'season', complete ? 'winner' : 'leader', top.name),
   };
 }

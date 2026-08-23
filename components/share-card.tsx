@@ -16,6 +16,7 @@ export function ShareCard({ scope, onClose }: { scope: ShareScope; onClose: () =
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [canSend, setCanSend] = useState(false);
+  const [name, setName] = useState(`${scope}-winner.png`);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,8 +25,10 @@ export function ShareCard({ scope, onClose }: { scope: ShareScope; onClose: () =
     fetch(`/api/share?scope=${scope}`)
       .then(async (res) => {
         if (!res.ok) throw new Error('could not render');
+        const named = res.headers.get('x-share-filename');
         const data = await res.blob();
         if (cancelled) return;
+        if (named) setName(named);
         objectUrl = URL.createObjectURL(data);
         setBlob(data);
         setUrl(objectUrl);
@@ -45,9 +48,9 @@ export function ShareCard({ scope, onClose }: { scope: ShareScope; onClose: () =
   // the button only appears where it will actually work.
   useEffect(() => {
     if (!blob) return;
-    const file = new File([blob], 'winner.png', { type: 'image/png' });
+    const file = new File([blob], name, { type: 'image/png' });
     setCanSend(typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] }));
-  }, [blob]);
+  }, [blob, name]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -64,7 +67,7 @@ export function ShareCard({ scope, onClose }: { scope: ShareScope; onClose: () =
 
   const send = async () => {
     if (!blob) return;
-    const file = new File([blob], `${scope}-winner.png`, { type: 'image/png' });
+    const file = new File([blob], name, { type: 'image/png' });
     try {
       await navigator.share({ files: [file] });
     } catch {
@@ -76,7 +79,7 @@ export function ShareCard({ scope, onClose }: { scope: ShareScope; onClose: () =
     if (!url) return;
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${scope}-winner.png`;
+    a.download = name;
     a.click();
   };
 
