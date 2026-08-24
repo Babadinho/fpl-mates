@@ -47,9 +47,15 @@ export function Fixtures({
       <div className="flex flex-col items-start gap-2 pb-5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-5">
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-baseline sm:gap-4">
           <h2 className="display m-0 text-[32px] tracking-[0.02em]">Gameweek {live.event}</h2>
-          <span className="font-mono text-[11px] text-dim">
-            {countdown ? `Deadline in ${countdown}` : 'Teams locked'}
-          </span>
+          {/* Counts down to the deadline, then explains the zeros until the
+              first kickoff. Once matches are under way "10 of 10 played" says
+              it better, and "teams locked" is only stating that a gameweek in
+              progress has started. */}
+          {(countdown || live.started === 0) && (
+            <span className="font-mono text-[11px] text-dim">
+              {countdown ? `Deadline in ${countdown}` : 'Teams locked'}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="font-mono text-[11px] tracking-[0.1em] text-dim uppercase">
