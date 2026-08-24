@@ -208,6 +208,31 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export const gwRange = (events: readonly number[]) =>
   events.length === 1 ? `GW ${events[0]}` : `GW ${events[0]}–${events.at(-1)}`;
 
+/**
+ * The line under a month's title: which gameweeks it covers, then how far
+ * along it is.
+ *
+ * The span is worth stating because months hold two to six gameweeks. Naming
+ * the live one is worth it only when the month holds more than one — saying
+ * "GW 1 · GW 1 in play" states the same gameweek twice.
+ */
+export function monthMeta(
+  events: readonly number[],
+  liveEvent: number | null,
+  complete: boolean,
+): string {
+  const hasLive = liveEvent !== null && events.includes(liveEvent);
+  const state = hasLive
+    ? events.length === 1
+      ? 'in play'
+      : `GW ${liveEvent} in play`
+    : complete
+      ? 'settled'
+      : 'in progress';
+
+  return `${gwRange(events)} · ${state}`;
+}
+
 /* ------------------------------------------------------------- sources */
 
 function fromFixtures(timezone: string): SourceData {
@@ -507,11 +532,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       view: {
         title: monthLabel(key, tz),
         provisional: hasLive,
-        // A month holding one gameweek reads "GW 1", not "GW 1–1", which in a
-        // football app looks like a scoreline.
-        meta: `${gwRange(events)} · ${
-          hasLive ? `GW ${liveEventInPlay} in play` : complete ? 'settled' : 'in progress'
-        }`,
+        meta: monthMeta(events, liveEventInPlay, complete),
         headers: ['Points', 'GWs', 'Avg'] as [string, string, string],
         note:
           `A gameweek belongs to the month of its FPL deadline, so months hold unequal numbers ` +
