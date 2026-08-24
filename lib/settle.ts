@@ -14,7 +14,7 @@
  * `processed_at` and let the poller run. Every write is an upsert and
  * `posted_at` is left alone, so it will not be announced twice.
  */
-import { fetchEntryPicks, fetchLiveEvent, mapWithConcurrency } from './fpl/client';
+import { fetchEntryPicks, fetchLiveEvent, FplApiError, mapWithConcurrency } from './fpl/client';
 import { getConfig } from './config';
 
 /** What a manager's squad turned into once FPL finished with it. */
@@ -66,8 +66,20 @@ export async function settleEntries(
   const bonusOf = new Map(live.elements.map((e) => [e.id, e.stats.bonus]));
   const pointsOf = new Map(live.elements.map((e) => [e.id, e.stats.total_points]));
 
-  return mapWithConcurrency(entryIds, cfg.fpl.concurrency, async (entryId) => {
-    const picks = await fetchEntryPicks(entryId, event);
+  const settled = await mapWithConcurrency(entryIds, cfg.fpl.concurrency, async (entryId) => {
+    // A 404 means this manager registered with FPL after the deadline, so
+    // there is no squad for this gameweek to attribute bonus to.
+    //
+    // Skipped rather than thrown because every manager is settled in one call,
+    // and the poller treats a failure here as "no bonus available" for all of
+    // them. One late joiner would write a zero against everybody, and since
+    // bonus is only ever computed at settlement, it would stay wrong.
+    const picks = await fetchEntryPicks(entryId, event).catch((err) => {
+      if (err instanceof FplApiError && err.status === 404) return null;
+      throw err;
+    });
+    if (!picks) return null;
+
     const multipliers = applySubs(picks.picks, picks.automatic_subs);
 
     let bonus = 0;
@@ -81,4 +93,6 @@ export async function settleEntries(
 
     return { entryId, bonus, grossPoints };
   });
+
+  return settled.filter((s): s is SettledEntry => s !== null);
 }

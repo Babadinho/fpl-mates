@@ -17,8 +17,8 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { getConfig } from './config';
 import { getDb } from './db';
 import { entryPicks, gameweeks, managers } from './db/schema';
-import { fetchBootstrap, fetchEntryPicks, fetchFixtures, fetchLiveEvent, mapWithConcurrency } from './fpl/client';
-import { CHIP_LABELS } from './fpl/schemas';
+import { fetchBootstrap, fetchEntryPicks, fetchFixtures, fetchLiveEvent, FplApiError, mapWithConcurrency } from './fpl/client';
+import { CHIP_LABELS, type FplPick } from './fpl/schemas';
 import { provisionalBonusByElement, type FixtureBps } from './scoring/bonus';
 import type { ManagerRef, ScoreRow } from './scoring/tables';
 
@@ -79,11 +79,20 @@ async function loadPicks(refs: ManagerRef[], event: number) {
     // One request each, once per gameweek — picks cannot change after the
     // deadline, so this never repeats within a gameweek.
     const fetched = await mapWithConcurrency(missing, cfg.fpl.concurrency, async (manager) => {
-      const picks = await fetchEntryPicks(manager.entryId, event);
+      // A 404 means this manager has no squad for this gameweek, because they
+      // registered with FPL after its deadline. Perfectly normal for someone
+      // who joined the league late, and their absence from the live table is
+      // the correct answer — but left to throw it takes the table down for
+      // everybody, since one unplayable entry aborts the whole fetch.
+      const picks = await fetchEntryPicks(manager.entryId, event).catch((err) => {
+        if (err instanceof FplApiError && err.status === 404) return null;
+        throw err;
+      });
+      if (!picks) return null;
 
       // `position` is the pick slot, 1–15. Null when the flag is absent, which
       // the schema tolerates because no response has confirmed it exists.
-      const slotOf = (match: (p: (typeof picks.picks)[number]) => boolean) =>
+      const slotOf = (match: (p: FplPick) => boolean) =>
         picks.picks.find(match)?.position ?? null;
 
       return {
@@ -98,9 +107,11 @@ async function loadPicks(refs: ManagerRef[], event: number) {
       };
     });
 
-    if (fetched.length > 0) {
-      await db.insert(entryPicks).values(fetched).onConflictDoNothing();
-      cached.push(...fetched.map((f) => ({ ...f, fetchedAt: new Date() })));
+    const played = fetched.filter((f): f is NonNullable<typeof f> => f !== null);
+
+    if (played.length > 0) {
+      await db.insert(entryPicks).values(played).onConflictDoNothing();
+      cached.push(...played.map((f) => ({ ...f, fetchedAt: new Date() })));
     }
   }
 
