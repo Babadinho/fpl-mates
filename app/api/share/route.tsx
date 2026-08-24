@@ -63,8 +63,19 @@ export async function GET(request: Request) {
     readFile(join(process.cwd(), 'app/fonts/jetbrains-mono.ttf')),
   ]);
 
-  const label = (text: string) => (
-    <div style={{ fontFamily: 'mono', fontSize: 20, letterSpacing: 4, color: dim, textTransform: 'uppercase' }}>
+  const label = (text: string, truncate = false) => (
+    <div
+      style={{
+        fontFamily: 'mono',
+        fontSize: 20,
+        letterSpacing: 4,
+        color: dim,
+        textTransform: 'uppercase',
+        ...(truncate
+          ? { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }
+          : {}),
+      }}
+    >
       {text}
     </div>
   );
@@ -92,11 +103,13 @@ export async function GET(request: Request) {
             justifyContent: 'space-between',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: accent }} />
-            {label(card.league)}
+          {/* The league name is the only variable-width thing up here, so it
+              is the one that gives way rather than pushing the season off. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, flex: '1 1 auto', minWidth: 0 }}>
+            <div style={{ width: 26, height: 26, borderRadius: 7, background: accent, flex: 'none' }} />
+            {label(card.league, true)}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: 'none' }}>
             {label(card.season)}
             {card.isSeason && (
               <svg

@@ -107,12 +107,17 @@ function Row({ row, onOpen }: { row: UiRow; onOpen?: () => void }) {
     >
       <div className="font-mono text-[13px] text-dim">{row.rank}</div>
 
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-auto items-center gap-3">
         <div className="flex min-w-0 flex-col gap-[3px]">
           <div className="flex items-center gap-2">
             <span title={row.name} className="truncate text-[16px] font-medium tracking-[-0.01em]">
               {row.name}
             </span>
+            {row.isNew && (
+              <span className="flex-none rounded-[3px] border border-accent px-[5px] py-[2px] font-mono text-[9px] tracking-[0.12em] text-accent uppercase">
+                New
+              </span>
+            )}
             {row.isLeader && <span className="h-1.5 w-1.5 flex-none rounded-full bg-pop" />}
           </div>
           <span title={row.team} className="truncate font-mono text-[11px] text-dim">

@@ -30,6 +30,8 @@ export interface UiRow {
   chip: string | null;
   isLeader: boolean;
   shared: boolean;
+  /** New to the period this table covers — badged beside the name. */
+  isNew: boolean;
   /** Numeric columns, in header order. Three normally, four with bench shown. */
   cells: string[];
 }
@@ -155,6 +157,8 @@ export interface LeaderboardView {
   } | null;
   whatsappEnabled: boolean;
   totalGameweeks: number;
+  /** Active league members. Shown in the header, preseason included. */
+  managerCount: number;
 }
 
 interface SourceData {
@@ -314,7 +318,7 @@ async function fromDatabase(): Promise<SourceData> {
 
 /* -------------------------------------------------------------- helpers */
 
-function toUiRows(
+export function toUiRows(
   rows: RankedRow[],
   cells: (row: RankedRow) => string[],
   /**
@@ -323,6 +327,14 @@ function toUiRows(
    * being alphabetically lucky.
    */
   unranked = false,
+  /**
+   * Whether this manager is new to the period the table shows.
+   *
+   * Scoped per table rather than to the current gameweek: asking "did they
+   * join recently?" everywhere marks someone new in a Gameweek 3 table they
+   * have a full season of points below.
+   */
+  isNew: (row: RankedRow) => boolean = () => false,
 ): UiRow[] {
   return rows.map((row) => ({
     entryId: row.entryId,
@@ -332,6 +344,8 @@ function toUiRows(
     chip: row.chip,
     isLeader: !unranked && row.rank === 1,
     shared: row.shared,
+    // An original member is not new in Gameweek 1.
+    isNew: row.manager.joinedGw > 1 && isNew(row),
     cells: cells(row),
   }));
 }
@@ -506,7 +520,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
           `Points shown are your score after transfer costs. FPL takes 4 points for each ` +
           `transfer beyond your free ones; Wildcard and Free Hit gameweeks cost nothing. ` +
           `${tiebreakNote}${prejoinNote}`,
-        rows: toUiRows(rows, (r) => weeklyCells(r)),
+        rows: toUiRows(rows, (r) => weeklyCells(r), false, (r) => r.manager.joinedGw === event),
       },
     };
   });
@@ -540,11 +554,17 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
           (hasLive
             ? ` Includes provisional points from Gameweek ${liveEventInPlay}, which can still change.`
             : ''),
-        rows: toUiRows(rows, (r) => [
-          String(r.points),
-          String(r.gameweeks),
-          String(r.gameweeks ? Math.round(r.points / r.gameweeks) : 0),
-        ]),
+        rows: toUiRows(
+          rows,
+          (r) => [
+            String(r.points),
+            String(r.gameweeks),
+            String(r.gameweeks ? Math.round(r.points / r.gameweeks) : 0),
+          ],
+          false,
+          // New to the month if the gameweek they joined falls inside it.
+          (r) => events.includes(r.manager.joinedGw),
+        ),
       },
     };
   });
@@ -571,7 +591,14 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       (liveEventInPlay !== null
         ? ` Includes provisional points from Gameweek ${liveEventInPlay}, which can still change.`
         : ''),
-    rows: toUiRows(seasonRows, (r) => [String(r.points), r.hits ? `−${r.hits}` : '—', String(r.best)]),
+    rows: toUiRows(
+      seasonRows,
+      (r) => [String(r.points), r.hits ? `−${r.hits}` : '—', String(r.best)],
+      false,
+      // Over a whole season "new" has to mean recent, or a Gameweek 3 joiner
+      // still carries the badge in May with thirty gameweeks behind them.
+      (r) => r.manager.joinedGw > (lastSettled ?? 0) - 4,
+    ),
   };
 
   /* ---- history */
@@ -810,7 +837,12 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
                   note:
                     'Provisional. Bonus is estimated from live match scores and can still ' +
                     'change; no winner is recorded until FPL confirms the final points.',
-                  rows: toUiRows(table, (r) => weeklyCells(r), state.started === 0),
+                  rows: toUiRows(
+                    table,
+                    (r) => weeklyCells(r),
+                    state.started === 0,
+                    (r) => r.manager.joinedGw === state.event,
+                  ),
                 },
         };
       }
@@ -921,5 +953,6 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         : buildPreseason(source, nextWeek, tz),
     whatsappEnabled: cfg.whatsapp !== null,
     totalGameweeks: source.weeks.length,
+    managerCount: source.managers.length,
   };
 }

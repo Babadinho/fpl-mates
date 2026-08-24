@@ -18,6 +18,7 @@ function row(over: Partial<UiRow> & Pick<UiRow, 'rank' | 'name'>): UiRow {
     chip: null,
     isLeader: false,
     shared: false,
+    isNew: false,
     cells: ['70', '+0', '—'],
     ...over,
   };

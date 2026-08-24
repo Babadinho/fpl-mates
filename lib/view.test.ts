@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { gwRange, monthMeta } from './view';
+import { gwRange, monthMeta, toUiRows } from './view';
+import type { RankedRow } from './scoring/tables';
 
 /**
  * A month holds however many gameweeks its deadlines fall in — two to six
@@ -40,5 +41,61 @@ describe('monthMeta', () => {
 
   it('ignores a live gameweek belonging to another month', () => {
     expect(monthMeta([1, 2], 5, true)).toBe('GW 1–2 · settled');
+  });
+});
+
+/**
+ * The "NEW" badge, whose rule is scoped to the period each table shows.
+ *
+ * The trap the brief calls out: evaluating "did they join recently?" against
+ * the current gameweek for every table leaks the badge onto historical
+ * gameweeks and the season, producing a new manager sitting 28th with a full
+ * season of points behind them.
+ */
+describe('the new-manager badge', () => {
+  const row = (joinedGw: number): RankedRow =>
+    ({
+      entryId: 1,
+      rank: 1,
+      shared: false,
+      chip: null,
+      points: 0,
+      gross: 0,
+      hits: 0,
+      bench: 0,
+      bonus: 0,
+      gameweeks: 1,
+      best: 0,
+      overallRank: null,
+      manager: { entryId: 1, playerName: 'A', entryName: 'B', joinedGw },
+    }) as RankedRow;
+
+  const badged = (r: RankedRow, rule: (row: RankedRow) => boolean) =>
+    toUiRows([r], () => [''], false, rule)[0].isNew;
+
+  it('never badges an original member, whatever the rule says', () => {
+    expect(badged(row(1), () => true)).toBe(false);
+  });
+
+  it('badges a joiner in the gameweek they joined', () => {
+    const weekly = (gw: number) => (r: RankedRow) => r.manager.joinedGw === gw;
+    expect(badged(row(6), weekly(6))).toBe(true);
+  });
+
+  it('does not badge them in later gameweeks', () => {
+    const weekly = (gw: number) => (r: RankedRow) => r.manager.joinedGw === gw;
+    expect(badged(row(6), weekly(7))).toBe(false);
+  });
+
+  it('badges within the month they joined, not the months after', () => {
+    const monthly = (events: number[]) => (r: RankedRow) => events.includes(r.manager.joinedGw);
+    expect(badged(row(6), monthly([5, 6, 7]))).toBe(true);
+    expect(badged(row(6), monthly([8, 9]))).toBe(false);
+  });
+
+  it('drops off the season table four gameweeks after joining', () => {
+    const season = (played: number) => (r: RankedRow) => r.manager.joinedGw > played - 4;
+    expect(badged(row(13), season(14))).toBe(true);
+    expect(badged(row(13), season(38))).toBe(false);
   });
 });

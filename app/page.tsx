@@ -30,8 +30,12 @@ export default async function Page() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2.5">
               <span className="block h-[22px] w-[22px] rounded-[4px] bg-accent" />
+              {/* League size lives here, not on the table meta line: that one
+                  counts managers in the table, which is a different and
+                  correctly smaller number once people join mid-season. */}
               <span className="font-mono text-[11px] tracking-[0.18em] text-dim uppercase">
-                {data.eyebrow} · {data.seasonLabel}
+                {data.eyebrow} · {data.seasonLabel} · {data.managerCount}{' '}
+                {data.managerCount === 1 ? 'manager' : 'managers'}
               </span>
             </div>
             <h1 className="display m-0 text-[44px] tracking-[0.005em] sm:text-[66px]">
