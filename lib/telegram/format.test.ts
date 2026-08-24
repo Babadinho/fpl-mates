@@ -5,6 +5,7 @@ import {
   formatFixtures,
   formatGameweek,
   formatHelp,
+  formatNext,
   formatSettled,
   formatWinners,
 } from './format';
@@ -60,6 +61,49 @@ describe('formatting', () => {
 
   it('says so when nothing has been won yet', () => {
     expect(formatWinners(view())).toMatch(/Nothing has been won/);
+  });
+
+  it('gives the next deadline while a gameweek is being played', () => {
+    // The status strip describes the round in progress, so without this the
+    // command named /next never mentions a deadline.
+    const out = formatNext(
+      view({
+        preseason: null,
+        status: {
+          label: 'GW 1 · PROVISIONAL',
+          sub: '9 of 10 played · nothing final yet',
+          nextDeadline: 'GW 2 deadline Fri 29 Aug, 18:30',
+        },
+      } as never),
+    );
+    expect(out).toMatch(/9 of 10 played/);
+    expect(out).toMatch(/GW 2 deadline/);
+  });
+
+  it('does not repeat the deadline when the strip already says it', () => {
+    const out = formatNext(
+      view({
+        preseason: null,
+        status: {
+          label: 'GW 1 SETTLED',
+          sub: 'GW 2 deadline Fri 29 Aug, 18:30',
+          nextDeadline: 'GW 2 deadline Fri 29 Aug, 18:30',
+        },
+      } as never),
+    );
+    expect(out.match(/GW 2 deadline/g)).toHaveLength(1);
+  });
+
+  it('does not claim the season has not started once it has', () => {
+    // Matches under way, nothing settled: preseason is null in that state.
+    const out = formatWinners(view({ preseason: null } as never));
+    expect(out).toMatch(/no gameweek has settled/);
+    expect(out).not.toMatch(/season has not started/);
+  });
+
+  it('still says the season has not started before it does', () => {
+    const out = formatWinners(view({ preseason: { title: 'Season starts soon' } } as never));
+    expect(out).toMatch(/season has not started/);
   });
 
   it('names a single winner', () => {

@@ -92,6 +92,11 @@ export interface LeaderboardView {
     provisional: boolean;
     label: string;
     sub: string;
+    /**
+     * The next deadline to come, already formatted, or null once the last one
+     * has passed. Separate from `sub`, which describes the round in progress.
+     */
+    nextDeadline: string | null;
     polled: string;
   };
   hero: { week: HeroCell; month: HeroCell; season: HeroCell } | null;
@@ -193,6 +198,9 @@ let livePausedUntil = 0;
 export const PAGE_SIZE = 25;
 
 const pad = (n: number) => String(n).padStart(2, '0');
+
+export const gwRange = (events: readonly number[]) =>
+  events.length === 1 ? `GW ${events[0]}` : `GW ${events[0]}–${events.at(-1)}`;
 
 /* ------------------------------------------------------------- sources */
 
@@ -493,7 +501,9 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       view: {
         title: monthLabel(key, tz),
         provisional: hasLive,
-        meta: `GW ${events[0]}–${events.at(-1)} · ${
+        // A month holding one gameweek reads "GW 1", not "GW 1–1", which in a
+        // football app looks like a scoreline.
+        meta: `${gwRange(events)} · ${
           hasLive ? `GW ${liveEventInPlay} in play` : complete ? 'settled' : 'in progress'
         }`,
         headers: ['Points', 'GWs', 'Avg'] as [string, string, string],
@@ -575,6 +585,13 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   // answer is the round we are waiting on.
   const nextWeek = source.weeks.find((w) => !w.dataChecked);
   const provisional = source.weeks.find((w) => w.finished && !w.dataChecked);
+
+  /**
+   * The next deadline still to come, which is not `nextWeek`: once a round
+   * kicks off, the gameweek being waited on is the one already under way and
+   * its deadline is in the past. This is the one people plan transfers around.
+   */
+  const nextDeadlineWeek = source.weeks.find((w) => w.deadlineTime.getTime() > Date.now());
 
   /**
    * Nothing scored anywhere: a deadline has gone but no gameweek has settled,
@@ -825,6 +842,9 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
             : nextWeek
               ? `GW ${nextWeek.event} deadline ${deadlineLabel(nextWeek.deadlineTime, tz)}`
               : 'season complete',
+      nextDeadline: nextDeadlineWeek
+        ? `GW ${nextDeadlineWeek.event} deadline ${deadlineLabel(nextDeadlineWeek.deadlineTime, tz)}`
+        : null,
       polled: relativeTime(source.lastPolled),
     },
     hero,

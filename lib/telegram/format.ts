@@ -125,7 +125,13 @@ export function formatWinners(data: LeaderboardView): string {
   const { weekly, monthly } = data.history;
 
   if (weekly.length === 0 && monthly.length === 0) {
-    return escape('Nothing has been won yet — the season has not started.');
+    // Not the same thing: matches can be under way with nothing settled, and
+    // saying the season has not started while people watch it is nonsense.
+    return escape(
+      data.preseason
+        ? 'Nothing has been won yet — the season has not started.'
+        : 'Nothing has been won yet — no gameweek has settled.',
+    );
   }
 
   const parts = ['*Winners*'];
@@ -181,7 +187,15 @@ export function formatNext(data: LeaderboardView): string {
   // Before the season the status strip reads "no gameweeks played yet", which
   // is fine beside the page's hero but useless from a command called /next.
   const sub = data.preseason ? data.preseason.title : data.status.sub;
-  return [`*${escape(data.leagueName)}*`, escape(data.status.label), escape(sub)].join('\n');
+  const lines = [`*${escape(data.leagueName)}*`, escape(data.status.label), escape(sub)];
+
+  // Once a round kicks off the strip describes that round, so the deadline
+  // people are actually asking about goes missing. Added unless it is already
+  // what the strip says.
+  const { nextDeadline } = data.status;
+  if (nextDeadline && !sub.includes(nextDeadline)) lines.push(escape(nextDeadline));
+
+  return lines.join('\n');
 }
 
 export function formatHelp(): string {
