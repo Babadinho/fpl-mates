@@ -40,7 +40,7 @@ function view(over: Partial<LeaderboardView> = {}): LeaderboardView {
     weekly: [{ event: 5, label: 'GW5', view: table }],
     monthly: [],
     season: table,
-    history: { weekly: [], monthly: [] },
+    history: { weekly: [], monthly: [], pending: { gameweek: null, month: null } },
     live: null,
     ...over,
   } as unknown as LeaderboardView;
@@ -94,11 +94,33 @@ describe('formatting', () => {
     expect(out.match(/GW 2 deadline/g)).toHaveLength(1);
   });
 
-  it('does not claim the season has not started once it has', () => {
+  it('names the gameweek being waited on rather than saying nothing settled', () => {
     // Matches under way, nothing settled: preseason is null in that state.
-    const out = formatWinners(view({ preseason: null } as never));
-    expect(out).toMatch(/no gameweek has settled/);
+    const out = formatWinners(
+      view({
+        preseason: null,
+        history: { weekly: [], monthly: [], pending: { gameweek: 2, month: 'August 2026' } },
+      } as never),
+    );
+    expect(out).toMatch(/Gameweek 2 is not settled yet/);
     expect(out).not.toMatch(/season has not started/);
+  });
+
+  it('says which month is outstanding when only weekly winners exist', () => {
+    // A month needs every one of its gameweeks settled, so this section is
+    // absent for weeks. Without a line it reads as a bug.
+    const out = formatWinners(
+      view({
+        preseason: null,
+        history: {
+          weekly: [{ gw: 'GW 01', name: 'Alice', pts: 90 }],
+          monthly: [],
+          pending: { gameweek: 2, month: 'August 2026' },
+        },
+      } as never),
+    );
+    expect(out).toMatch(/Alice/);
+    expect(out).toMatch(/August 2026 is not settled yet/);
   });
 
   it('still says the season has not started before it does', () => {

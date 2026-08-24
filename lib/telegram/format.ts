@@ -122,16 +122,19 @@ export function formatMonth(data: LeaderboardView, name?: string): string {
 }
 
 export function formatWinners(data: LeaderboardView): string {
-  const { weekly, monthly } = data.history;
+  const { weekly, monthly, pending } = data.history;
 
   if (weekly.length === 0 && monthly.length === 0) {
-    // Not the same thing: matches can be under way with nothing settled, and
-    // saying the season has not started while people watch it is nonsense.
-    return escape(
-      data.preseason
-        ? 'Nothing has been won yet — the season has not started.'
-        : 'Nothing has been won yet — no gameweek has settled.',
-    );
+    // Naming what is outstanding answers the next question. Saying the season
+    // has not started while people are watching it is nonsense, and "nothing
+    // has settled" leaves them wondering what they are waiting for.
+    const reason = data.preseason
+      ? 'the season has not started'
+      : pending.gameweek
+        ? `Gameweek ${pending.gameweek} is not settled yet`
+        : 'nothing has settled';
+
+    return escape(`Nothing has been won yet — ${reason}.`);
   }
 
   const parts = ['*Winners*'];
@@ -158,6 +161,10 @@ export function formatWinners(data: LeaderboardView): string {
         codeRow(`${m.month.padEnd(5)}  ${pad(m.name, nameWidth)}  ${String(m.pts).padStart(3)}`),
       ),
     );
+  } else if (pending.month) {
+    // A month is only won once every one of its gameweeks has settled, so the
+    // section is missing for weeks at a time. Silence reads as a bug.
+    parts.push('', '_Monthly_', escape(`${pending.month} is not settled yet.`));
   }
 
   parts.push('', `[Full history](${data.siteUrl})`);

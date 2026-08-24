@@ -118,6 +118,12 @@ export interface LeaderboardView {
   history: {
     weekly: { gw: string; name: string; pts: number }[];
     monthly: { month: string; name: string; pts: number }[];
+    /**
+     * What is being waited on, so an empty list can say which gameweek or
+     * month is outstanding rather than only that nothing has been won.
+     * Both null once the season is over.
+     */
+    pending: { gameweek: number | null; month: string | null };
   };
   live: {
     event: number;
@@ -568,6 +574,12 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       .filter((x): x is { gw: string; name: string; pts: number } => x !== null),
     monthly: [...monthly]
       .reverse()
+      // Same rule the poller declares on: every gameweek in the month settled.
+      // Without it a month still being played reports a winner, and the bot
+      // announces one the database has not recorded.
+      .filter(({ key }) =>
+        source.weeks.filter((w) => w.monthKey === key).every((w) => w.dataChecked),
+      )
       .map(({ key, short }) => {
         const events = months.get(key)!.map((w) => w.event);
         const winner = declareWinner(
@@ -852,7 +864,13 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     weekly,
     monthly,
     season,
-    history,
+    history: {
+      ...history,
+      pending: {
+        gameweek: nextWeek?.event ?? null,
+        month: nextWeek ? monthLabel(nextWeek.monthKey, tz) : null,
+      },
+    },
     // Stands down once the first ball is kicked, not once a gameweek settles:
     // otherwise the live table stays hidden behind the joined list for the
     // whole of Gameweek 1. `live.view` is null until a fixture starts and then
