@@ -44,7 +44,8 @@ function Cell({ cell, onShare }: { cell: HeroCell; onShare?: () => void }) {
       <div className="label">{cell.label}</div>
       <div className="display text-[38px] tracking-[0.01em]">{cell.name}</div>
       <div className="flex items-baseline gap-2.5 font-mono text-[12px] text-dim">
-        <span className="text-[15px] text-accent">{cell.value}</span>
+        {/* Never wraps: a tie-break explanation is long enough to squeeze it. */}
+        <span className="flex-none whitespace-nowrap text-[15px] text-accent">{cell.value}</span>
         <span>{countdown ? `first kickoff in ${countdown}` : cell.sub}</span>
       </div>
 

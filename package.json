@@ -15,7 +15,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "poll": "tsx scripts/poll.ts",
-    "telegram:test": "tsx scripts/telegram-test.ts"
+    "telegram:test": "tsx scripts/telegram-test.ts",
+    "verify:bonus": "node --env-file=.env.local scripts/verify-bonus.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
