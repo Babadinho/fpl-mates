@@ -198,7 +198,13 @@ expected, not a bug.
 
 **Ties break in a configurable order**, by default: higher score, then fewer
 points lost to transfers, then fewer points left on the bench, then better
-overall FPL rank. Survive all four and the win is shared.
+overall FPL rank. Survive all four and the win is shared. Whichever rule
+actually settled it is named on the page, so a narrow win explains itself
+rather than looking arbitrary.
+
+The bench rule applies whether or not `SHOW_BENCH_COLUMN` is on — that setting
+hides a table column, not the figure. Opening a manager lists their bench with
+each player's points, so a win decided on it can still be checked.
 
 **Nothing counts until FPL confirms it.** Bonus points settle an hour or more
 after the final whistle, and corrections land days later. Live scores are shown

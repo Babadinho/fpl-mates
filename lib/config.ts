@@ -63,15 +63,29 @@ function defaultUserAgent(siteUrl: string): string {
 const TIEBREAK_KEYS = ['points', 'hits', 'bench', 'overall_rank'] as const;
 export type TiebreakKey = (typeof TIEBREAK_KEYS)[number];
 
-/** Plain-English rule names for the footnote under every table. */
+/**
+ * Rule names, as they read in the footnote under every table and in the hero
+ * line naming what settled a win.
+ *
+ * Short on purpose: they appear mid-sentence, one after another, and the long
+ * forms turned the footnote into a paragraph nobody finished. Each one is a
+ * column heading people already have in front of them.
+ */
 export const TIEBREAK_LABELS: Record<TiebreakKey, string> = {
-  points: 'the higher score',
-  hits: 'fewer points lost to transfers',
-  bench: 'fewer points left on the bench',
-  overall_rank: 'the better overall FPL rank',
+  points: 'a higher score',
+  hits: 'fewer hits',
+  bench: 'fewer bench points',
+  overall_rank: 'a better overall rank',
 };
 
-/** Comma-separated tie-break rule keys, applied in order. */
+/**
+ * Comma-separated tie-break rule keys, applied in order.
+ *
+ * Bench is in the default order regardless of `SHOW_BENCH_COLUMN`: hiding the
+ * column hides a table column, not the figure. Opening a manager lists their
+ * bench with each player's points, so a win decided on it can still be
+ * checked.
+ */
 const tiebreakOrder = z
   .string()
   .optional()

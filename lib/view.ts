@@ -481,7 +481,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     .join(', then ')}, then the win is shared.`;
   const prejoinNote = cfg.rules.countPrejoinGws
     ? ''
-    : ' Managers score only from the gameweek they joined.';
+    : ' Managers score from the gameweek they joined.';
 
   /* ---- weekly
    *
