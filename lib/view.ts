@@ -627,6 +627,17 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   const nextDeadlineWeek = source.weeks.find((w) => w.deadlineTime.getTime() > Date.now());
 
   /**
+   * A deadline has passed with nothing settled yet.
+   *
+   * Read from the stored deadline and the clock, never from the live fetch.
+   * Until a gameweek settles, live data is the only other evidence the season
+   * has begun — so deriving this from it means one failed request makes the
+   * whole page claim we are back in preseason.
+   */
+  const gameweekUnderway =
+    !seasonStarted && nextWeek !== undefined && nextWeek.deadlineTime.getTime() <= Date.now();
+
+  /**
    * Nothing scored anywhere: a deadline has gone but no gameweek has settled,
    * so every table is a column of zeros.
    *
@@ -649,12 +660,19 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       week: {
         label: `Gameweek ${nextWeek.event} winner`,
         name: 'To be decided',
-        value: liveState ? `${liveState.total} fixtures` : 'not started',
+        value: liveState
+          ? `${liveState.total} fixtures`
+          : gameweekUnderway
+            ? 'under way'
+            : 'not started',
         // "under way" only while something is. `started` counts every match
         // that has kicked off, finished ones included, so on its own it called
         // a match that ended an hour ago under way.
         sub: !liveState
-          ? 'waiting for kickoff'
+          ? // The deadline has gone, so this is not a squad still being picked.
+            gameweekUnderway
+            ? 'waiting on FPL for scores'
+            : 'waiting for kickoff'
           : liveState.inPlay
             ? `${liveState.started - liveState.finished} under way`
             : liveState.started === 0
@@ -815,9 +833,6 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
    * ordinary state of no match being on. A gameweek runs Friday to Monday and
    * is between fixtures for most of it.
    */
-  const gameweekUnderway =
-    !seasonStarted && nextWeek !== undefined && nextWeek.deadlineTime.getTime() <= Date.now();
-
   /** Begun, but nothing kicked off yet: squads frozen, table level. */
   const liveLocked = gameweekUnderway && (live?.started ?? 0) === 0;
 
@@ -892,12 +907,18 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         month: nextWeek ? monthLabel(nextWeek.monthKey, tz) : null,
       },
     },
-    // Stands down once the first ball is kicked, not once a gameweek settles:
-    // otherwise the live table stays hidden behind the joined list for the
-    // whole of Gameweek 1. `live.view` is null until a fixture starts and then
-    // holds for the rest of the gameweek, unlike `inPlay`, which goes false
-    // between match days.
-    preseason: seasonStarted || live?.view ? null : buildPreseason(source, nextWeek, tz),
+    // Stands down at the deadline, not once a gameweek settles: otherwise the
+    // live table stays hidden behind the joined list for the whole of
+    // Gameweek 1.
+    //
+    // `gameweekUnderway` rather than `live.view`, because the live fetch is
+    // the one input here that can fail. Reading it from the clock means an
+    // unreachable FPL costs the scores, not the whole page reverting to a
+    // panel that announces a start date already in the past.
+    preseason:
+      seasonStarted || live?.view || gameweekUnderway
+        ? null
+        : buildPreseason(source, nextWeek, tz),
     whatsappEnabled: cfg.whatsapp !== null,
     totalGameweeks: source.weeks.length,
   };
