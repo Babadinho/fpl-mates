@@ -154,7 +154,7 @@ export async function GET(request: Request) {
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontFamily: 'display', fontSize: 124, lineHeight: 0.88 }}>
+            <div style={{ fontFamily: 'display', fontSize: 124, lineHeight: 0.9 }}>
               {card.winner.toUpperCase()}
             </div>
             <div style={{ fontFamily: 'mono', fontSize: 24, color: dim }}>{card.team}</div>
@@ -178,7 +178,7 @@ export async function GET(request: Request) {
           ))}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto', paddingTop: 30 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto', paddingTop: 16 }}>
           {label(card.chaseLabel)}
           <div style={{ display: 'flex', flexDirection: 'column', paddingTop: 14 }}>
             {card.chase.map((c) => (

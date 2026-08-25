@@ -6,7 +6,7 @@
  * data and only decides which tab to show — no fetching, no scoring.
  */
 import { asc, desc, eq, inArray } from 'drizzle-orm';
-import { getConfig, TIEBREAK_LABELS, type TiebreakKey } from './config';
+import { getConfig, TIEBREAK_LABELS, TIEBREAK_STEPS, type TiebreakKey } from './config';
 import { getDb } from './db';
 import { gameweeks, league, managers as managersTable, gwScores, pollRuns } from './db/schema';
 import { mockLeague } from './fixtures/mock';
@@ -478,10 +478,19 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   const lastSettled = settledWeeks.at(-1) ?? null;
   const seasonStarted = lastSettled !== null;
 
-  const tiebreakNote = `Ties break on ${cfg.rules.tiebreakOrder
-    .slice(1)
-    .map((k) => TIEBREAK_LABELS[k])
-    .join(', then ')}, then the win is shared.`;
+  /**
+   * The sort order, stated where the table is read.
+   *
+   * Arguments about who won a week are the main cost of running a league, and
+   * a rule in front of the reader settles them without anyone opening a
+   * README. Built from the configured order, so it cannot drift from the sort
+   * it describes, and it carries the one definition the rest rests on rather
+   * than spending a second sentence on it.
+   */
+  const tiebreakNote = `Tie-break order: ${cfg.rules.tiebreakOrder
+    .map((k) => (k === 'points' ? `${TIEBREAK_STEPS[k]} (gross − transfer cost)` : TIEBREAK_STEPS[k]))
+    .join(', ')}.`;
+
   const prejoinNote = cfg.rules.countPrejoinGws
     ? ''
     : ' Managers score from the gameweek they joined.';
@@ -515,14 +524,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         // Matches the live table, so the columns do not rearrange under
         // people the moment a gameweek settles.
         headers: weeklyHeaders,
-        // Plain English on purpose — this footnote exists to settle arguments,
-        // so it must be both understandable AND accurate. Free transfers bank
-        // up to five, and Wildcard/Free Hit weeks cost nothing, so "4 points
-        // per transfer" would be wrong often enough to cause the argument.
-        note:
-          `Points shown are your score after transfer costs. FPL takes 4 points for each ` +
-          `transfer beyond your free ones; Wildcard and Free Hit gameweeks cost nothing. ` +
-          `${tiebreakNote}${prejoinNote}`,
+        note: `${tiebreakNote}${prejoinNote}`,
         rows: toUiRows(rows, (r) => weeklyCells(r), false, (r) => r.manager.joinedGw === event),
       },
     };

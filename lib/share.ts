@@ -91,7 +91,9 @@ function filenameOf(...parts: string[]): string {
 
 /** Everyone below the winner, which is the part people actually read. */
 function chasing(view: TableView) {
-  return view.rows.slice(1, 4).map((r, i) => ({
+  // Two, not three: the card is about the winner, and a third name pushes the
+  // display type down to make room for someone nobody is reading about.
+  return view.rows.slice(1, 3).map((r, i) => ({
     rank: String(i + 2).padStart(2, '0'),
     name: r.name,
     points: r.cells[0],
@@ -220,7 +222,7 @@ export async function getShareCard(
       { label: 'Best GW', value: String(view.winners?.season?.best ?? orZero(top.cells[2])) },
       { label: 'Hits', value: deducted(view.winners?.season?.hits ?? 0) },
     ],
-    chaseLabel: complete ? 'Final top four' : 'Also in the running',
+    chaseLabel: complete ? 'Runners-up' : 'Also in the running',
     chase: chasing(view.season),
     footer: footerFor(view.winners?.season?.decidedBy),
     filename: filenameOf(league, season, 'season', complete ? 'winner' : 'leader', top.name),

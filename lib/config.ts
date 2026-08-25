@@ -79,6 +79,20 @@ export const TIEBREAK_LABELS: Record<TiebreakKey, string> = {
 };
 
 /**
+ * The same rules as list items, for the order stated under every table.
+ *
+ * Separate from the labels above because those are comparative — "fewer hits"
+ * describes beating the runner-up — while a list of criteria wants the
+ * superlative. Both stay in step with `TIEBREAK_KEYS`.
+ */
+export const TIEBREAK_STEPS: Record<TiebreakKey, string> = {
+  points: 'net points',
+  hits: 'fewest hits',
+  bench: 'fewest bench points',
+  overall_rank: 'better overall FPL rank',
+};
+
+/**
  * Comma-separated tie-break rule keys, applied in order.
  *
  * Bench is in the default order regardless of `SHOW_BENCH_COLUMN`: hiding the
