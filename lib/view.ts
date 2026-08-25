@@ -232,7 +232,10 @@ export function monthMeta(
       : `GW ${liveEvent} in play`
     : complete
       ? 'settled'
-      : 'in progress';
+      // Says which thing is unfinished. The halves describe different scopes —
+      // the gameweeks counted, then how far along the month is — and a bare
+      // "in progress" beside "GW 1" reads as Gameweek 1 still being played.
+      : 'month in progress';
 
   return `${gwRange(events)} · ${state}`;
 }

@@ -35,8 +35,11 @@ describe('monthMeta', () => {
     expect(monthMeta([1, 2, 3], null, true)).toBe('GW 1–3 · settled');
   });
 
-  it('says in progress when gameweeks remain but none is being played', () => {
-    expect(monthMeta([1], null, false)).toBe('GW 1 · in progress');
+  it('names the month as the unfinished thing, not the gameweek', () => {
+    // "GW 1 · in progress" reads as Gameweek 1 still being played, which is
+    // the opposite of true once it has settled and the month has not.
+    expect(monthMeta([1], null, false)).toBe('GW 1 · month in progress');
+    expect(monthMeta([1, 2], null, false)).toBe('GW 1–2 · month in progress');
   });
 
   it('ignores a live gameweek belonging to another month', () => {
