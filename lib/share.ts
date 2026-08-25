@@ -91,9 +91,11 @@ function filenameOf(...parts: string[]): string {
 
 /** Everyone below the winner, which is the part people actually read. */
 function chasing(view: TableView) {
-  // Two, not three: the card is about the winner, and a third name pushes the
-  // display type down to make room for someone nobody is reading about.
-  return view.rows.slice(1, 3).map((r, i) => ({
+  // Three. The design asked for two and gave no reason; here it left a void,
+  // because this block is pinned to the bottom of a fixed-height card and every
+  // row removed collects as empty space above it. Their prototype always
+  // carries four stats where ours often has two, so it had height to spare.
+  return view.rows.slice(1, 4).map((r, i) => ({
     rank: String(i + 2).padStart(2, '0'),
     name: r.name,
     points: r.cells[0],

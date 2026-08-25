@@ -178,7 +178,7 @@ export async function GET(request: Request) {
           ))}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto', paddingTop: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto', paddingTop: 30 }}>
           {label(card.chaseLabel)}
           <div style={{ display: 'flex', flexDirection: 'column', paddingTop: 14 }}>
             {card.chase.map((c) => (
