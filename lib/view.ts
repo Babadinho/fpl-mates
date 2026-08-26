@@ -520,7 +520,12 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       label: `GW${event}`,
       view: {
         title: `Gameweek ${event}`,
-        meta: `${rows.length} manager${rows.length === 1 ? '' : 's'} · avg ${average}`,
+        // "6 of 8" whenever the gameweek predates someone joining. The header
+        // carries the league total, and without the "of" the two numbers
+        // simply disagree, leaving the reader to guess which is wrong.
+        meta:
+          `${rows.length === source.managers.length ? rows.length : `${rows.length} of ${source.managers.length}`} ` +
+          `manager${source.managers.length === 1 ? '' : 's'} · avg ${average}`,
         // Matches the live table, so the columns do not rearrange under
         // people the moment a gameweek settles.
         headers: weeklyHeaders,
