@@ -142,6 +142,15 @@ export interface LeaderboardView {
     note: string;
     stateLabel: string;
   } | null;
+  /**
+   * The round is under way but its live picture could not be fetched.
+   *
+   * Set only when there is genuinely something to show and we failed to get
+   * it, so the Fixtures tab can stay put and say so. A tab that disappears
+   * reads as a feature being removed; one that explains itself reads as
+   * weather. Null whenever `live` is present, or live scoring is off.
+   */
+  liveOutage: { event: number } | null;
   /** Pre-season: no gameweek has settled, so there is nothing to rank yet. */
   preseason: {
     label: string;
@@ -528,6 +537,22 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     ...(showBench ? [String(r.bench)] : []),
   ];
 
+  /**
+   * The same columns before a ball is kicked.
+   *
+   * Bonus and bench points are dashed rather than zeroed: no match has been
+   * played, so "+0" and "0" state a result that does not exist yet. Points and
+   * hits are real from the deadline — FPL freezes transfer cost with the
+   * squad, so a manager who took a −4 is already four down, and saying so is
+   * the whole reason this table is worth showing before kickoff.
+   */
+  const lockedCells = (r: RankedRow) => [
+    String(r.points),
+    '—',
+    r.hits ? `−${r.hits}` : '—',
+    ...(showBench ? ['—'] : []),
+  ];
+
   const weekly = settledWeeks.map((event) => {
     const rows = weeklyTable(source.scores, source.managers, event, options);
     const average = rows.length
@@ -859,7 +884,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
                     'change; no winner is recorded until FPL confirms the final points.',
                   rows: toUiRows(
                     table,
-                    (r) => weeklyCells(r),
+                    state.started === 0 ? lockedCells : weeklyCells,
                     state.started === 0,
                     (r) => r.manager.joinedGw === state.event,
                   ),
@@ -885,8 +910,15 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
    * ordinary state of no match being on. A gameweek runs Friday to Monday and
    * is between fixtures for most of it.
    */
-  /** Begun, but nothing kicked off yet: squads frozen, table level. */
-  const liveLocked = gameweekUnderway && (live?.started ?? 0) === 0;
+  /**
+   * Begun, but nothing kicked off yet: squads frozen, table level.
+   *
+   * Requires the live picture to have actually arrived. Defaulting a missing
+   * one to zero started said LOCKED through an outage — asserting no match had
+   * kicked off when the truth was that we could not see. Without it this falls
+   * to `liveBetween`, which claims only that the round is under way.
+   */
+  const liveLocked = gameweekUnderway && live !== null && live.started === 0;
 
   /** Begun, matches played, none on at this moment. */
   const liveBetween = gameweekUnderway && !liveLocked && !liveInPlay;
@@ -932,7 +964,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         : provisional
           ? 'waiting for FPL to apply bonus points'
           : liveLocked
-            ? `teams locked · ${live ? `${live.total} fixtures to play` : 'waiting on FPL'}`
+            ? `teams locked · ${live!.total} fixtures to play`
             : liveBetween
               ? live
                 ? `${live.fixtures.filter((f) => f.finished).length} of ${live.total} played · nothing final yet`
@@ -971,6 +1003,10 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       seasonStarted || live?.view || gameweekUnderway
         ? null
         : buildPreseason(source, nextWeek, tz),
+    liveOutage:
+      cfg.live.enabled && !cfg.useFixtures && live === null && gameweekUnderway && nextWeek
+        ? { event: nextWeek.event }
+        : null,
     whatsappEnabled: cfg.whatsapp !== null,
     totalGameweeks: source.weeks.length,
     managerCount: source.managers.length,

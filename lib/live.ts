@@ -138,11 +138,30 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
   const cfg = getConfig();
   const db = getDb();
 
-  const [bootstrap, fixtures, live] = await Promise.all([
-    fetchBootstrap(),
-    fetchFixtures(event),
-    fetchLiveEvent(event),
-  ]);
+  const [bootstrap, fixtures] = await Promise.all([fetchBootstrap(), fetchFixtures(event)]);
+
+  /**
+   * Scores are only asked for once something has kicked off.
+   *
+   * Before the first whistle there is nothing to fetch: the endpoint answers
+   * `elements: []` for a gameweek that has not started, so the request buys a
+   * table of zeroes we can build without it. It is also, precisely then, the
+   * request most likely to fail — FPL puts this endpoint into maintenance for
+   * a while after every deadline, and the client answers a 503 by retrying
+   * five times across about fifteen seconds, against a page budget of 2.5.
+   *
+   * Folded into the fetch above, that one failure took the whole live picture
+   * down: no fixtures grid and no pill for the gameweek, for the entire window
+   * between the deadline and the first kickoff, which is when a fixture list
+   * is the only thing there is to look at.
+   *
+   * Once a match is on it is fetched and a failure is still fatal, because a
+   * table of zeroes would then be a lie rather than an absence — the page
+   * falling back to its settled tables is the honest answer to that.
+   */
+  const anyStarted = fixtures.some((f) => f.started);
+  const live = anyStarted ? await fetchLiveEvent(event) : { elements: [] };
+
   const fetchedAt = new Date();
 
   const teamName = new Map(bootstrap.teams.map((t) => [t.id, t.short_name]));

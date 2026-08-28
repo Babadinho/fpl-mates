@@ -314,15 +314,51 @@ function History({ history }: { history: LeaderboardView['history'] }) {
   );
 }
 
+/**
+ * Shown in place of the live table or the fixtures grid when FPL is not
+ * answering.
+ *
+ * The tab and the pill stay put and say this instead of disappearing: a
+ * control that vanishes reads as the feature having been withdrawn, and the
+ * three questions it leaves — whose fault, how long, is my score at risk —
+ * are all answerable, so they are answered here.
+ */
+function LiveUnavailable({ event, heading }: { event: number; heading: string }) {
+  return (
+    <section className="pt-[30px]">
+      <div className="flex flex-col items-start gap-2 pb-5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-5">
+        <h2 className="display m-0 text-[32px] tracking-[0.02em]">Gameweek {event}</h2>
+        <span className="font-mono text-[11px] tracking-[0.1em] text-dim uppercase">
+          Unavailable
+        </span>
+      </div>
+      {/* The house empty state: one dim line, as "No gameweeks settled yet." */}
+      <p className="border-t border-line pt-[18px] font-mono text-[12px] leading-[1.7] text-dim">
+        {heading} FPL is not answering — this is their end, not yours. It usually clears
+        within a few minutes, and nothing is lost while it does: the gameweek is scored
+        from the official result once it settles.
+      </p>
+    </section>
+  );
+}
+
 export function Leaderboard({ data }: { data: LeaderboardView }) {
   const liveEvent = data.live?.view ? data.live.event : null;
+  /**
+   * The gameweek being played, scores or no scores.
+   *
+   * `liveEvent` needs a table to show; this needs only for the round to exist.
+   * The pill is navigation, and navigation that comes and goes with an FPL
+   * outage reads as the gameweek itself having gone away.
+   */
+  const underwayEvent = liveEvent ?? data.liveOutage?.event ?? null;
 
   const [tab, setTab] = useState<Tab>('weekly');
   // Opens on the gameweek in play, which is the one being asked about while it
   // is on. Only settled gameweeks are in data.weekly, so the live one has to be
   // named here too or the page opens on last week with this week's pill beside
   // it, unselected. Falls back to the newest settled gameweek between them.
-  const [event, setEvent] = useState(() => liveEvent ?? data.weekly.at(-1)?.event ?? 1);
+  const [event, setEvent] = useState(() => underwayEvent ?? data.weekly.at(-1)?.event ?? 1);
   const [monthKey, setMonthKey] = useState(() => data.monthly.at(-1)?.key ?? '');
   // Name and team ride along so the panel header is right on the first frame.
   const [open, setOpen] = useState<{ entryId: number; name: string; team: string } | null>(null);
@@ -339,7 +375,7 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
   // The gameweek in play gets a pill of its own, after the settled ones.
   const weeklyPills = [
     ...data.weekly.map((w) => ({ event: w.event, label: w.label })),
-    ...(liveEvent !== null ? [{ event: liveEvent, label: `GW${liveEvent}` }] : []),
+    ...(underwayEvent !== null ? [{ event: underwayEvent, label: `GW${underwayEvent}` }] : []),
   ];
 
   const weekView =
@@ -348,7 +384,11 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
       : data.weekly.find((w) => w.event === event)?.view;
   const monthView = data.monthly.find((m) => m.key === monthKey)?.view;
 
-  const tabs = data.live ? [...BASE_TABS, { key: 'fixtures' as Tab, label: 'Fixtures' }] : BASE_TABS;
+  // The tab stands whether or not the scores arrived. Losing it mid-gameweek
+  // reads as the feature having been taken away; keeping it and saying what
+  // happened reads as the weather, which is what an FPL outage is.
+  const hasFixturesTab = Boolean(data.live || data.liveOutage);
+  const tabs = hasFixturesTab ? [...BASE_TABS, { key: 'fixtures' as Tab, label: 'Fixtures' }] : BASE_TABS;
 
   // Any table showing points from the gameweek in play can be refreshed.
   const liveRefresh = data.live
@@ -428,6 +468,9 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
           onOpenSquad={squadEvent === null ? undefined : setOpen}
         />
       )}
+      {!data.preseason && tab === 'weekly' && !weekView && event === underwayEvent && (
+        <LiveUnavailable event={event} heading="Live scores for this gameweek:" />
+      )}
       {!data.preseason && tab === 'monthly' && monthView && (
         <Table
           key={`monthly-${monthKey}`}
@@ -459,6 +502,9 @@ export function Leaderboard({ data }: { data: LeaderboardView }) {
       )}
       {tab === 'fixtures' && data.live && (
         <Fixtures live={data.live} refreshSeconds={data.refreshSeconds} />
+      )}
+      {tab === 'fixtures' && !data.live && data.liveOutage && (
+        <LiveUnavailable event={data.liveOutage.event} heading="Fixtures and live scores:" />
       )}
     </>
   );
