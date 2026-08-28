@@ -213,6 +213,25 @@ export const gwRange = (events: readonly number[]) =>
   events.length === 1 ? `GW ${events[0]}` : `GW ${events[0]}–${events.at(-1)}`;
 
 /**
+ * A deadline has passed and that gameweek has not settled.
+ *
+ * Read from the stored deadline and the clock, never from the live fetch.
+ * Until a gameweek settles, live data is the only other evidence the round has
+ * begun — so deriving this from it means one failed request makes the whole
+ * page claim we are back in preseason.
+ *
+ * Deliberately blind to whether anything has settled before. This says a ROUND
+ * is under way, which is as true of Gameweek 12 as of Gameweek 1. Gating it on
+ * an unstarted season made all three live states collapse the moment the first
+ * gameweek settled, dropping the header through to "GW n deadline <date>" for
+ * a deadline already gone — the reason it is a named function with a test.
+ */
+export const isGameweekUnderway = (
+  nextWeek: { deadlineTime: Date } | undefined,
+  now: number,
+) => nextWeek !== undefined && nextWeek.deadlineTime.getTime() <= now;
+
+/**
  * The line under a month's title: which gameweeks it covers, then how far
  * along it is.
  *
@@ -663,16 +682,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
    */
   const nextDeadlineWeek = source.weeks.find((w) => w.deadlineTime.getTime() > Date.now());
 
-  /**
-   * A deadline has passed with nothing settled yet.
-   *
-   * Read from the stored deadline and the clock, never from the live fetch.
-   * Until a gameweek settles, live data is the only other evidence the season
-   * has begun — so deriving this from it means one failed request makes the
-   * whole page claim we are back in preseason.
-   */
-  const gameweekUnderway =
-    !seasonStarted && nextWeek !== undefined && nextWeek.deadlineTime.getTime() <= Date.now();
+  const gameweekUnderway = isGameweekUnderway(nextWeek, Date.now());
 
   /**
    * Nothing scored anywhere: a deadline has gone but no gameweek has settled,
@@ -929,8 +939,8 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
                 : 'gameweek under way · nothing final yet'
               : !seasonStarted
                 ? 'no gameweeks played yet'
-            : nextWeek
-              ? `GW ${nextWeek.event} deadline ${deadlineLabel(nextWeek.deadlineTime, tz)}`
+            : nextDeadlineWeek
+              ? `GW ${nextDeadlineWeek.event} deadline ${deadlineLabel(nextDeadlineWeek.deadlineTime, tz)}`
               : 'season complete',
       nextDeadline: nextDeadlineWeek
         ? `GW ${nextDeadlineWeek.event} deadline ${deadlineLabel(nextDeadlineWeek.deadlineTime, tz)}`

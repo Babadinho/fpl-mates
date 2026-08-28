@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gwRange, monthMeta, toUiRows } from './view';
+import { gwRange, isGameweekUnderway, monthMeta, toUiRows } from './view';
 import type { RankedRow } from './scoring/tables';
 
 /**
@@ -100,5 +100,30 @@ describe('the new-manager badge', () => {
     const season = (played: number) => (r: RankedRow) => r.manager.joinedGw > played - 4;
     expect(badged(row(13), season(14))).toBe(true);
     expect(badged(row(13), season(38))).toBe(false);
+  });
+});
+
+// The regression this guards: the predicate used to be gated on the season
+// being unstarted, so GW1 settling silently disabled it for every gameweek
+// after. Taking only a deadline and a clock is what makes that unexpressible —
+// these cases pin the boundary the gate was hiding.
+describe('isGameweekUnderway', () => {
+  const now = Date.parse('2026-08-29T12:00:00Z');
+  const week = (iso: string) => ({ deadlineTime: new Date(iso) });
+
+  it('is under way once the deadline has gone', () => {
+    expect(isGameweekUnderway(week('2026-08-28T17:30:00Z'), now)).toBe(true);
+  });
+
+  it('is not under way while the deadline is still ahead', () => {
+    expect(isGameweekUnderway(week('2026-09-04T17:30:00Z'), now)).toBe(false);
+  });
+
+  it('is not under way once every gameweek has settled', () => {
+    expect(isGameweekUnderway(undefined, now)).toBe(false);
+  });
+
+  it('treats the deadline instant itself as under way', () => {
+    expect(isGameweekUnderway(week('2026-08-29T12:00:00Z'), now)).toBe(true);
   });
 });
