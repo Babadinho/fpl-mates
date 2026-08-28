@@ -315,13 +315,17 @@ function History({ history }: { history: LeaderboardView['history'] }) {
 }
 
 export function Leaderboard({ data }: { data: LeaderboardView }) {
+  const liveEvent = data.live?.view ? data.live.event : null;
+
   const [tab, setTab] = useState<Tab>('weekly');
-  const [event, setEvent] = useState(() => data.weekly.at(-1)?.event ?? 1);
+  // Opens on the gameweek in play, which is the one being asked about while it
+  // is on. Only settled gameweeks are in data.weekly, so the live one has to be
+  // named here too or the page opens on last week with this week's pill beside
+  // it, unselected. Falls back to the newest settled gameweek between them.
+  const [event, setEvent] = useState(() => liveEvent ?? data.weekly.at(-1)?.event ?? 1);
   const [monthKey, setMonthKey] = useState(() => data.monthly.at(-1)?.key ?? '');
   // Name and team ride along so the panel header is right on the first frame.
   const [open, setOpen] = useState<{ entryId: number; name: string; team: string } | null>(null);
-
-  const liveEvent = data.live?.view ? data.live.event : null;
 
   /**
    * Which gameweek's squad a row opens.
