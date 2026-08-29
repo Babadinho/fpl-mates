@@ -923,6 +923,15 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   /** Begun, matches played, none on at this moment. */
   const liveBetween = gameweekUnderway && !liveLocked && !liveInPlay;
 
+  /**
+   * True while the newest gameweek can still change: locked, in play, between
+   * fixtures, or waiting on bonus.
+   *
+   * `settled` and `provisional` below are both read from this, so they cannot
+   * contradict each other.
+   */
+  const nothingFinal = Boolean(provisional) || liveInPlay || liveLocked || liveBetween;
+
   return {
     live,
     leagueName: cfg.site.leagueName ?? source.leagueName,
@@ -941,9 +950,9 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       (cfg.site.searchMode === 'auto' && source.managers.length > PAGE_SIZE),
     seasonStarted,
     status: {
-      settled: seasonStarted && !provisional && !liveInPlay,
+      settled: seasonStarted && !nothingFinal,
       live: liveInPlay,
-      provisional: Boolean(provisional) || liveInPlay || liveLocked || liveBetween,
+      provisional: nothingFinal,
       label: liveInPlay
         ? `GW ${live!.event} LIVE · PROVISIONAL`
         : provisional
