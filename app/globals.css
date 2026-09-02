@@ -16,6 +16,9 @@
   --hair: oklch(0.93 0.01 300);
   --hover: oklch(0.955 0.01 300);
   --accent-ink: oklch(0.98 0.01 300);
+  /* The settled status dot. Fixed rather than injected: it has to stay
+     readable against --amber below, and --pop is free to move. */
+  --settled: oklch(0.72 0.19 145);
   /* Third status colour, for anything provisional or in play. Set from
      LIVE_COLOR; the literal is the fallback when nothing is injected. */
   --amber: var(--amber-light, oklch(0.62 0.14 70));
@@ -33,6 +36,7 @@
   --hair: oklch(0.27 0.03 300);
   --hover: oklch(0.235 0.035 300);
   --accent-ink: oklch(0.18 0.03 300);
+  --settled: oklch(0.78 0.16 145);
   --amber: var(--amber-dark, oklch(0.8 0.15 80));
   --danger: oklch(0.72 0.17 25);
   --accent: var(--accent-dark);

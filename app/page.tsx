@@ -49,8 +49,11 @@ export default async function Page() {
                 <span
                   className="h-1.5 w-1.5 rounded-full"
                   style={{
+                    // Not --pop: that is the brand colour, and its dark value
+                    // sits beside --amber, so a settled gameweek read as one
+                    // still waiting on bonus.
                     background: data.status.settled
-                      ? 'var(--pop)'
+                      ? 'var(--settled)'
                       : data.status.provisional
                         ? 'var(--amber)'
                         : 'var(--dim)',
