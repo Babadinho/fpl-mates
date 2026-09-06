@@ -46,11 +46,15 @@ export function ShareCard({ scope, onClose }: { scope: ShareScope; onClose: () =
 
   // Sharing a file is a phone capability. Desktop browsers mostly cannot, so
   // the button only appears where it will actually work.
+  //
+  // Asked on open, against a stand-in file: the answer is about the browser,
+  // not the image. Waiting for the real one held Share back until the PNG
+  // arrived, and its arrival then shrank Download from full width to a third
+  // and moved it across the row, under the thumb already reaching for it.
   useEffect(() => {
-    if (!blob) return;
-    const file = new File([blob], name, { type: 'image/png' });
-    setCanSend(typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] }));
-  }, [blob, name]);
+    const probe = new File([new Uint8Array(1)], 'card.png', { type: 'image/png' });
+    setCanSend(typeof navigator.canShare === 'function' && navigator.canShare({ files: [probe] }));
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
