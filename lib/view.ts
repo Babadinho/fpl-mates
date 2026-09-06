@@ -10,7 +10,7 @@ import { getConfig, TIEBREAK_LABELS, TIEBREAK_STEPS, type TiebreakKey } from './
 import { getDb } from './db';
 import { gameweeks, league, managers as managersTable, gwScores, pollRuns } from './db/schema';
 import { mockLeague } from './fixtures/mock';
-import { getLiveState, type LiveFixture } from './live';
+import { getLiveState, type LiveFixture, type LiveState } from './live';
 import { groupByMonth, monthLabel, monthShortLabel } from './scoring/month';
 import {
   declareWinner,
@@ -217,6 +217,34 @@ function withBudget<T>(work: Promise<T>, ms: number): Promise<T> {
  */
 const LIVE_PAUSE_MS = 60_000;
 let livePausedUntil = 0;
+
+/**
+ * How old a live picture may be before the page stops offering it.
+ *
+ * Past this the empty state is the more honest answer. Below it a slightly old
+ * table beats none, and the page labels its own age — "Updated 3 mins ago",
+ * from `fetchedAt` — so nobody is told it is current.
+ */
+const LIVE_STALE_MAX_MS = 5 * 60_000;
+
+/** The last live picture that arrived, for the two cases below. */
+let lastLive: LiveState | null = null;
+
+/**
+ * Whether the last picture can stand in for one we could not fetch.
+ *
+ * The event has to match: at a gameweek boundary this still holds the round
+ * that just ended, and serving that as the new one would be a fabrication
+ * rather than a stale reading.
+ */
+export const isLiveStillUsable = (
+  cached: { event: number; fetchedAt: Date } | null,
+  event: number,
+  now: number,
+) =>
+  cached !== null &&
+  cached.event === event &&
+  now - cached.fetchedAt.getTime() < LIVE_STALE_MAX_MS;
 
 /** Rows per page. Also the threshold for `SHOW_SEARCH=auto`. */
 export const PAGE_SIZE = 25;
@@ -511,13 +539,34 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   if (cfg.live.enabled && !cfg.useFixtures) {
     const upcoming = source.weeks.find((w) => !w.dataChecked);
     if (upcoming && Date.now() >= livePausedUntil) {
+      const work = getLiveState(upcoming.event);
+
+      // `withBudget` only stops listening — the request is already in flight
+      // and finishes regardless. A refused request is retried over about
+      // fifteen seconds, so the answer usually lands a second or two after the
+      // budget is spent; keeping it makes the next render warm instead of
+      // paying the same cost again.
+      void work.then(
+        (state) => {
+          if (state) lastLive = state;
+        },
+        () => {},
+      );
+
       try {
-        liveState = await withBudget(getLiveState(upcoming.event), LIVE_PAGE_BUDGET_MS);
+        liveState = await withBudget(work, LIVE_PAGE_BUDGET_MS);
         livePausedUntil = 0;
       } catch {
         liveState = null;
         livePausedUntil = Date.now() + LIVE_PAUSE_MS;
       }
+    }
+
+    // Nothing fetched, either because the budget was spent or because the
+    // pause above is still running. Neither is a reason to show nothing when
+    // there is a recent answer to hand.
+    if (!liveState && upcoming && isLiveStillUsable(lastLive, upcoming.event, Date.now())) {
+      liveState = lastLive;
     }
   }
   const liveRows = liveState?.rows ?? [];

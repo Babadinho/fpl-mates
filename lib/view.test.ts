@@ -3,6 +3,7 @@ import {
   gwRange,
   isAwaitingConfirmation,
   isGameweekUnderway,
+  isLiveStillUsable,
   monthMeta,
   toUiRows,
 } from './view';
@@ -175,5 +176,37 @@ describe('isAwaitingConfirmation', () => {
 
   it('is not awaiting confirmation when the live picture never arrived', () => {
     expect(isAwaitingConfirmation(null)).toBe(false);
+  });
+});
+
+/**
+ * The page gives the live fetch 2.5 seconds, but a refused request is retried
+ * over about fifteen — so a single 403 from FPL's CDN spends the budget, and
+ * the answer that arrives moments later would otherwise be thrown away and
+ * followed by a minute of not asking. Holding the last picture covers that gap.
+ */
+describe('isLiveStillUsable', () => {
+  const now = Date.parse('2026-09-06T18:00:00Z');
+  const cached = (event: number, iso: string) => ({ event, fetchedAt: new Date(iso) });
+
+  it('stands in for a fetch that just missed its budget', () => {
+    expect(isLiveStillUsable(cached(3, '2026-09-06T17:59:30Z'), 3, now)).toBe(true);
+  });
+
+  it('stops standing in once it is old enough to mislead', () => {
+    expect(isLiveStillUsable(cached(3, '2026-09-06T17:50:00Z'), 3, now)).toBe(false);
+  });
+
+  /**
+   * The dangerous case. After a gameweek settles this still holds the round
+   * that just ended, and serving those scores as the new gameweek's would be
+   * an invention rather than a stale reading.
+   */
+  it('never stands in for a different gameweek', () => {
+    expect(isLiveStillUsable(cached(3, '2026-09-06T17:59:30Z'), 4, now)).toBe(false);
+  });
+
+  it('has nothing to offer before the first fetch of a process', () => {
+    expect(isLiveStillUsable(null, 3, now)).toBe(false);
   });
 });
