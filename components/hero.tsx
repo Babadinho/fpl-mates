@@ -41,7 +41,11 @@ function Cell({ cell, onShare }: { cell: HeroCell; onShare?: () => void }) {
 
   return (
     <div className="flex flex-col gap-3 bg-bg px-6 pt-[26px] pb-7">
-      <div className="label">{cell.label}</div>
+      <div className="label">
+        {cell.label}
+        {/* Amber, matching the status dot: this is the same state, said twice. */}
+        {cell.unconfirmed && <span className="text-amber"> — unconfirmed</span>}
+      </div>
       <div className="display text-[38px] tracking-[0.01em]">{cell.name}</div>
       <div className="flex items-baseline gap-2.5 font-mono text-[12px] text-dim">
         {/* Never wraps: a tie-break explanation is long enough to squeeze it. */}
@@ -95,7 +99,10 @@ export function Hero({
         <Cell
           key={cell.label}
           cell={cell}
-          onShare={canShare ? () => setSharing(SCOPES[i]) : undefined}
+          // Per cell, not per page: a shared image outlives the correction that
+          // could change it, and the share route draws the confirmed winner
+          // anyway — so it would disagree with the card it came from.
+          onShare={canShare && !cell.unconfirmed ? () => setSharing(SCOPES[i]) : undefined}
         />
       ))}
 

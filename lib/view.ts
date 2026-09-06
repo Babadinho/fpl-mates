@@ -69,6 +69,11 @@ export interface HeroCell {
    * only while a gameweek is waiting to start — the countdown is the point.
    */
   countdownTo?: string | null;
+  /**
+   * The gameweek is played out but FPL has not confirmed it. Marks the card
+   * and withholds its share button — a shared image outlives a correction.
+   */
+  unconfirmed?: boolean;
 }
 
 export interface LeaderboardView {
@@ -239,6 +244,22 @@ export const isGameweekUnderway = (
   nextWeek: { deadlineTime: Date } | undefined,
   now: number,
 ) => nextWeek !== undefined && nextWeek.deadlineTime.getTime() <= now;
+
+/**
+ * Every fixture played and every bonus awarded, with FPL yet to sign off.
+ *
+ * The points have stopped moving here — only a stat correction can change
+ * them — so the winner is worth naming a day before `data_checked` lands.
+ *
+ * Both halves are load-bearing. `bonusPending` only inspects fixtures that
+ * have started, so it reads false all Saturday evening while Sunday is still
+ * to come; the fixture count is what closes that gap. And FPL's own
+ * fixture-level `finished` flag is no substitute — it stays false with real
+ * bonus already in the payload, so it settles no earlier than `data_checked`.
+ */
+export const isAwaitingConfirmation = (
+  live: { finished: number; total: number; bonusPending: boolean } | null,
+) => live !== null && live.total > 0 && live.finished === live.total && !live.bonusPending;
 
 /**
  * The line under a month's title: which gameweeks it covers, then how far
@@ -710,6 +731,14 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   const gameweekUnderway = isGameweekUnderway(nextWeek, Date.now());
 
   /**
+   * Played out and waiting only on FPL's check.
+   *
+   * Read from the live fixtures rather than the stored `finished` flag, which
+   * the poller writes and which says nothing about bonus.
+   */
+  const gameweekUnconfirmed = gameweekUnderway && isAwaitingConfirmation(liveState);
+
+  /**
    * Nothing scored anywhere: a deadline has gone but no gameweek has settled,
    * so every table is a column of zeros.
    *
@@ -832,6 +861,29 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
     };
   }
 
+  // The gameweek just played is the one being asked about, so its winner takes
+  // the card rather than last week's — named, but marked as unsigned. Applies
+  // to either branch above: the first gameweek of a season has no settled
+  // winner to displace, and still has one worth showing.
+  if (hero && gameweekUnconfirmed && liveState && nextWeek) {
+    const rows = weeklyTable(liveState.rows, source.managers, nextWeek.event, options);
+    const winner = declareWinner(rows, cfg.rules.tiebreakOrder);
+
+    if (winner) {
+      hero.week = {
+        label: `Gameweek ${nextWeek.event} winner`,
+        name: nameOf(winner.entryId),
+        value: `${winner.points} pts`,
+        sub: winner.decidedBy
+          ? `won on ${TIEBREAK_LABELS[winner.decidedBy]}`
+          : winner.tiedWith.length
+            ? `shared with ${winner.tiedWith.length} other`
+            : 'won outright',
+        unconfirmed: true,
+      };
+    }
+  }
+
   /* ---- live gameweek (never from fixtures, and never fatal) */
   let live: LeaderboardView['live'] = null;
 
@@ -852,10 +904,13 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
           stateLabel: state.started === 0
             ? 'Not started'
             : `${state.finished} of ${state.total} played`,
-          note:
-            'Scores refresh while fixtures are in play. Bonus points are estimated from ' +
-            'live match scores and can still change — nothing counts, and no winner is ' +
-            'recorded, until FPL confirms the final points.',
+          note: gameweekUnconfirmed
+            ? 'Every fixture is played and every bonus point awarded. FPL has still to ' +
+              'confirm the gameweek, and a stat correction can move points until it does, ' +
+              'so no winner is recorded yet.'
+            : 'Scores refresh while fixtures are in play. Bonus points are estimated from ' +
+              'live match scores and can still change — nothing counts, and no winner is ' +
+              'recorded, until FPL confirms the final points.',
           view:
             state.rows.length === 0
               ? null
@@ -872,16 +927,20 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
                       ? `Teams locked · ${state.total} fixtures to play`
                       : state.inPlay
                         ? `In play · ${state.started} of ${state.total} fixtures started · provisional`
-                        : `${state.finished} of ${state.total} played · provisional`,
+                        : gameweekUnconfirmed
+                          ? `All ${state.total} played · unconfirmed`
+                          : `${state.finished} of ${state.total} played · provisional`,
                   // Only an estimate while a started fixture is still waiting
                   // on its bonus. Once FPL has awarded them all, the column is
                   // the real thing and should not still say otherwise.
                   headers: weeklyHeaders.map((h, i) =>
                     i === 1 && state.bonusPending ? 'Est. bonus' : h,
                   ),
-                  note:
-                    'Provisional. Bonus is estimated from live match scores and can still ' +
-                    'change; no winner is recorded until FPL confirms the final points.',
+                  note: gameweekUnconfirmed
+                    ? 'Complete but unconfirmed. Bonus is final; a stat correction can ' +
+                      'still move points, so no winner is recorded until FPL signs off.'
+                    : 'Provisional. Bonus is estimated from live match scores and can still ' +
+                      'change; no winner is recorded until FPL confirms the final points.',
                   rows: toUiRows(
                     table,
                     state.started === 0 ? lockedCells : weeklyCells,
@@ -921,16 +980,17 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   const liveLocked = gameweekUnderway && live !== null && live.started === 0;
 
   /** Begun, matches played, none on at this moment. */
-  const liveBetween = gameweekUnderway && !liveLocked && !liveInPlay;
+  const liveBetween = gameweekUnderway && !liveLocked && !liveInPlay && !gameweekUnconfirmed;
 
   /**
    * True while the newest gameweek can still change: locked, in play, between
-   * fixtures, or waiting on bonus.
+   * fixtures, played out but unconfirmed, or waiting on bonus.
    *
    * `settled` and `provisional` below are both read from this, so they cannot
    * contradict each other.
    */
-  const nothingFinal = Boolean(provisional) || liveInPlay || liveLocked || liveBetween;
+  const nothingFinal =
+    Boolean(provisional) || liveInPlay || liveLocked || liveBetween || gameweekUnconfirmed;
 
   return {
     live,
@@ -955,9 +1015,13 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
       provisional: nothingFinal,
       label: liveInPlay
         ? `GW ${live!.event} LIVE · PROVISIONAL`
-        : provisional
-          ? `GW ${provisional.event} PROVISIONAL`
-          : liveLocked
+        : // Ahead of `provisional`, which is the stored `finished` flag and so
+          // cannot tell bonus awarded from bonus still to come.
+          gameweekUnconfirmed
+          ? `GW ${nextWeek!.event} UNCONFIRMED`
+          : provisional
+            ? `GW ${provisional.event} PROVISIONAL`
+            : liveLocked
             ? // nextWeek, not live — these states exist precisely when the live
               // fetch may have failed, so reading through it would crash.
               `GW ${nextWeek!.event} LOCKED`
@@ -970,9 +1034,11 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
         ? seasonStarted
           ? `GW ${lastSettled} final · GW ${live!.event} still playing`
           : `GW ${live!.event} in play`
-        : provisional
-          ? 'waiting for FPL to apply bonus points'
-          : liveLocked
+        : gameweekUnconfirmed
+          ? `all ${liveState!.total} played · waiting for FPL to confirm`
+          : provisional
+            ? 'waiting for FPL to apply bonus points'
+            : liveLocked
             ? `teams locked · ${live!.total} fixtures to play`
             : liveBetween
               ? live

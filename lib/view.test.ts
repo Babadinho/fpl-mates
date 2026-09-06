@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { gwRange, isGameweekUnderway, monthMeta, toUiRows } from './view';
+import {
+  gwRange,
+  isAwaitingConfirmation,
+  isGameweekUnderway,
+  monthMeta,
+  toUiRows,
+} from './view';
 import type { RankedRow } from './scoring/tables';
 
 /**
@@ -125,5 +131,49 @@ describe('isGameweekUnderway', () => {
 
   it('treats the deadline instant itself as under way', () => {
     expect(isGameweekUnderway(week('2026-08-29T12:00:00Z'), now)).toBe(true);
+  });
+});
+
+/**
+ * FPL confirms a gameweek up to a day after the last whistle, but the points
+ * stop moving as soon as the final bonus is awarded. Naming the winner in that
+ * gap is only safe if the gap is detected exactly.
+ */
+describe('isAwaitingConfirmation', () => {
+  const live = (finished: number, total: number, bonusPending: boolean) => ({
+    finished,
+    total,
+    bonusPending,
+  });
+
+  it('is awaiting confirmation once every fixture is played and paid', () => {
+    expect(isAwaitingConfirmation(live(10, 10, false))).toBe(true);
+  });
+
+  /**
+   * The Saturday-evening trap. `bonusPending` only looks at fixtures that have
+   * started, so it goes false the moment Saturday's bonus lands — hours before
+   * Sunday kicks off. Measured live during Gameweek 3: 8 of 10 played, real
+   * bonus on all eight, `bonusPending` already false.
+   */
+  it('is not awaiting confirmation while fixtures are still to be played', () => {
+    expect(isAwaitingConfirmation(live(8, 10, false))).toBe(false);
+  });
+
+  it('is not awaiting confirmation between the last whistle and the bonus', () => {
+    expect(isAwaitingConfirmation(live(10, 10, true))).toBe(false);
+  });
+
+  it('is not awaiting confirmation before a ball is kicked', () => {
+    expect(isAwaitingConfirmation(live(0, 10, false))).toBe(false);
+  });
+
+  // Nothing played is not everything played, however the equality reads.
+  it('is not awaiting confirmation on a gameweek with no fixtures', () => {
+    expect(isAwaitingConfirmation(live(0, 0, false))).toBe(false);
+  });
+
+  it('is not awaiting confirmation when the live picture never arrived', () => {
+    expect(isAwaitingConfirmation(null)).toBe(false);
   });
 });
