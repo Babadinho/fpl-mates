@@ -277,13 +277,29 @@ either Postgres or the checked-in fixtures, then running the same scoring
 functions over either. The client component receives plain data and decides only
 which tab to show — no fetching, no scoring.
 
-Two derivations that are easy to get wrong:
+Four derivations that are easy to get wrong:
 
 - **Season label** comes from the *opening* year (`2026/27`). Deriving it from
   the last loaded gameweek reads `2026/26` whenever only early rounds exist.
 - **"Next gameweek"** is the first **unsettled** one, not the next future
   deadline. Mid-round — kicked off but not settled — the useful answer is the
   round you are waiting on.
+- **"Unconfirmed"** — every fixture played and every bonus awarded, with
+  `data_checked` still false — is what lets the hero name a winner about a day
+  early. Both halves of `isAwaitingConfirmation` carry weight. `bonusPending`
+  alone goes false on a Saturday evening with Sunday still to play, because it
+  only inspects fixtures that have *started*; the fixture count closes that.
+  And FPL's own fixture-level `finished` flag is no shortcut: measured during
+  GW3, all eight played fixtures carried real 3-2-1 bonus while `finished` was
+  still false on every one, so it settles no earlier than `data_checked` does.
+- **The live picture can be a few minutes old.** A render gives the fetch
+  2500ms, but a refused request is retried over about fifteen seconds — a
+  ladder sized for the poller, which has sixty. One 403 from FPL's CDN spends
+  the budget on its first backoff. Since `withBudget` is a `Promise.race` it
+  only stops *listening*, so the answer is kept when it lands and reused while
+  it is under five minutes old and belongs to the same gameweek. That event
+  check is not optional: without it the round that just ended would be served
+  as the new one. `fetchedAt` travels with it, so the page still says how old.
 
 ### Client state
 

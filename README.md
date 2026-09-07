@@ -208,7 +208,14 @@ each player's points, so a win decided on it can still be checked.
 
 **Nothing counts until FPL confirms it.** Bonus points settle an hour or more
 after the final whistle, and corrections land days later. Live scores are shown
-while matches are played, but no winner is recorded until the gameweek is final.
+while matches are played, and once every match is played and every bonus point
+is awarded the page names a winner marked **unconfirmed** — usually the same
+evening, roughly a day before FPL signs the gameweek off.
+
+Shown is not recorded. Nothing is written until FPL confirms it: no winner row,
+no entry in the history, no Telegram post, and no share card for a result that
+could still move. A stat correction days later is rare but real, which is why
+the label says so rather than the page pretending to certainty it lacks.
 
 **Managers score from the gameweek they joined the league**, not from the start
 of the season. Somebody joining at GW10 arrives with GW1–9 already on FPL's
