@@ -19,6 +19,7 @@ import { getDb } from './db';
 import { entryPicks, gameweeks, managers } from './db/schema';
 import { fetchBootstrap, fetchEntryPicks, fetchFixtures, fetchLiveEvent, FplApiError, mapWithConcurrency } from './fpl/client';
 import { CHIP_LABELS, type FplPick } from './fpl/schemas';
+import { predictSubs } from './scoring/subs';
 import { provisionalBonusByElement, type FixtureBps } from './scoring/bonus';
 import type { ManagerRef, ScoreRow } from './scoring/tables';
 
@@ -245,16 +246,33 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
   const rows: ScoreRow[] = [];
   const provisionalBonus = new Map<number, number>();
 
+  /**
+   * FPL substitutes when the gameweek ends, so until every match is played the
+   * table counts the eleven as picked — which is also what FPL's own live
+   * pages show, and what people have open in the next tab.
+   *
+   * Once they are all played it is worth working the substitutions out: the
+   * picked eleven is wrong for a fifth of a league by then, and that was
+   * enough to name the wrong weekly winner.
+   */
+  const allPlayed = fixtures.length > 0 && finished === fixtures.length;
+  const elementPosition = new Map(bootstrap.elements.map((e) => [e.id, e.element_type]));
+
   for (const entry of picks) {
     let points = 0;
     let bonus = 0;
     let bench = 0;
 
+    const multipliers = allPlayed
+      ? predictSubs(
+          entry,
+          (id) => stats.get(id)?.minutes ?? 0,
+          (id) => elementPosition.get(id) ?? 0,
+        )
+      : entry.multipliers;
+
     entry.elementIds.forEach((elementId, index) => {
-      const multiplier = entry.multipliers[index] ?? 0;
-      // Auto-substitutions are only applied when the gameweek ends, so a live
-      // table counts the starting XI exactly as picked.
-      //
+      const multiplier = multipliers[index] ?? 0;
       // A benched player's points are tracked but never added: they only count
       // under Bench Boost, and that gives every pick a multiplier of 1, so
       // this branch is not reached for them.

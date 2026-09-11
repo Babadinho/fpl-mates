@@ -954,9 +954,10 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
             ? 'Not started'
             : `${state.finished} of ${state.total} played`,
           note: gameweekUnconfirmed
-            ? 'Every fixture is played and every bonus point awarded. FPL has still to ' +
-              'confirm the gameweek, and a stat correction can move points until it does, ' +
-              'so no winner is recorded yet.'
+            ? 'Every fixture is played and every bonus point awarded. Substitutions are ' +
+              'worked out here rather than read from FPL, which applies them when it ' +
+              'confirms the gameweek — so this is our reading of the result, and no ' +
+              'winner is recorded until FPL signs it off.'
             : 'Scores refresh while fixtures are in play. Bonus points are estimated from ' +
               'live match scores and can still change — nothing counts, and no winner is ' +
               'recorded, until FPL confirms the final points.',
@@ -986,8 +987,9 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
                     i === 1 && state.bonusPending ? 'Est. bonus' : h,
                   ),
                   note: gameweekUnconfirmed
-                    ? 'Complete but unconfirmed. Bonus is final; a stat correction can ' +
-                      'still move points, so no winner is recorded until FPL signs off.'
+                    ? 'Complete but unconfirmed. Bonus is final and substitutions are ' +
+                      'applied as FPL will apply them, but this is our reconstruction of ' +
+                      'the result — no winner is recorded until FPL confirms it.'
                     : 'Provisional. Bonus is estimated from live match scores and can still ' +
                       'change; no winner is recorded until FPL confirms the final points.',
                   rows: toUiRows(
