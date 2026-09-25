@@ -7,6 +7,7 @@
  */
 import { asc, desc, eq, inArray } from 'drizzle-orm';
 import { getConfig, TIEBREAK_LABELS, TIEBREAK_STEPS, type TiebreakKey } from './config';
+import { maskManagers } from './anonymise';
 import { getDb } from './db';
 import { gameweeks, league, managers as managersTable, gwScores, pollRuns } from './db/schema';
 import { mockLeague } from './fixtures/mock';
@@ -361,15 +362,17 @@ async function fromDatabase(): Promise<SourceData> {
       .limit(1),
   ]);
 
+  const named = maskManagers(roster);
+
   return {
     leagueName: leagueRows[0]?.name ?? 'FPL Gaffer',
-    managers: roster.map((m) => ({
+    managers: named.map((m) => ({
       entryId: m.entryId,
       playerName: m.playerName,
       entryName: m.entryName,
       joinedGw: m.joinedGw,
     })),
-    joined: roster.map((m) => ({
+    joined: named.map((m) => ({
       entryId: m.entryId,
       playerName: m.playerName,
       entryName: m.entryName,

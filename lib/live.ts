@@ -15,6 +15,7 @@
  */
 import { and, eq, inArray } from 'drizzle-orm';
 import { getConfig } from './config';
+import { maskManagers } from './anonymise';
 import { getDb } from './db';
 import { entryPicks, gameweeks, managers } from './db/schema';
 import { fetchBootstrap, fetchEntryPicks, fetchFixtures, fetchLiveEvent, FplApiError, mapWithConcurrency } from './fpl/client';
@@ -234,7 +235,7 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
   const bonusByElement = provisionalBonusByElement(bpsByFixture);
 
   // ---- manager scores
-  const roster = await db.select().from(managers).where(eq(managers.active, true));
+  const roster = maskManagers(await db.select().from(managers).where(eq(managers.active, true)));
   const refs: ManagerRef[] = roster.map((m) => ({
     entryId: m.entryId,
     playerName: m.playerName,

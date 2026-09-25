@@ -8,6 +8,7 @@
  */
 import { and, eq } from 'drizzle-orm';
 import { getConfig } from './config';
+import { maskManagers } from './anonymise';
 import { getDb } from './db';
 import { entryPicks, gameweeks, managers } from './db/schema';
 import { mockLeague } from './fixtures/mock';
@@ -118,7 +119,7 @@ function fromFixtures(entryId: number, event: number): SquadView | null {
 async function fromDatabase(entryId: number, event: number): Promise<SquadView | null> {
   const db = getDb();
 
-  const [[manager], [week], [picks]] = await Promise.all([
+  const [[stored], [week], [picks]] = await Promise.all([
     db.select().from(managers).where(eq(managers.entryId, entryId)).limit(1),
     db.select().from(gameweeks).where(eq(gameweeks.event, event)).limit(1),
     db
@@ -127,6 +128,10 @@ async function fromDatabase(entryId: number, event: number): Promise<SquadView |
       .where(and(eq(entryPicks.entryId, entryId), eq(entryPicks.event, event)))
       .limit(1),
   ]);
+
+  // Masked here rather than at the call site, so the panel names a manager the
+  // same way the row that opened it does.
+  const [manager] = maskManagers(stored ? [stored] : []);
 
   if (!manager || !week) return null;
 

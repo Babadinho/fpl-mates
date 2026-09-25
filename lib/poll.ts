@@ -18,6 +18,7 @@
  *      no separate backfill script.
  */
 import { and, asc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { maskManagers } from './anonymise';
 import { getConfig } from './config';
 import { getDb } from './db';
 import { gameweeks, gwScores, managers, monthlyWinners, pollRuns, weeklyWinners } from './db/schema';
@@ -149,7 +150,8 @@ export async function runPoll(): Promise<PollResult> {
       });
     }
 
-    const refs: ManagerRef[] = roster.map((m) => ({
+    // Masked so a Telegram post names the winner exactly as the page does.
+    const refs: ManagerRef[] = maskManagers(roster).map((m) => ({
       entryId: m.entryId,
       playerName: m.playerName,
       entryName: m.entryName,

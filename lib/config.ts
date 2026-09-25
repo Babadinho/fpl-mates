@@ -246,6 +246,11 @@ const schema = z.object({
    * Bench Boost, so the column invites an argument about a number that did
    * not affect anybody's score.
    */
+  /**
+   * Replace manager names with stand-ins, for a public demo off a real league.
+   * Display only — the poller keeps storing the real ones.
+   */
+  ANONYMISE_MANAGERS: boolEnv(false),
   SHOW_BENCH_COLUMN: boolEnv(false),
   /**
    * Search box above the table. `auto` shows it only once the league is larger
@@ -397,6 +402,7 @@ function load() {
       allowIndexing: env.ALLOW_INDEXING,
       passcode: env.LEAGUE_PASSCODE,
       passcodeRememberDays: env.PASSCODE_REMEMBER_DAYS,
+      anonymiseManagers: env.ANONYMISE_MANAGERS,
       showBenchColumn: env.SHOW_BENCH_COLUMN,
       searchMode: env.SHOW_SEARCH,
     },
