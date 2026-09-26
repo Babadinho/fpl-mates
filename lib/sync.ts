@@ -8,11 +8,14 @@
 import { and, asc, eq, notInArray, sql } from 'drizzle-orm';
 import { getConfig } from './config';
 import { getDb } from './db';
-import { gameweeks, league, managers } from './db/schema';
+import { gameweeks, league, managers, managerSeasons } from './db/schema';
 import { fetchEvents, fetchLeagueRoster } from './fpl/client';
 import { joinedGameweek, monthKeyOf } from './scoring/month';
+import { seasonOf } from './season';
 
 export interface SyncResult {
+  /** The season bootstrap is serving, which is the one everything else keys on. */
+  season: number;
   gameweeks: number;
   members: number;
   leagueName: string;
@@ -22,13 +25,23 @@ export interface SyncResult {
   degraded: string | null;
 }
 
-/** Mirrors bootstrap-static's 38 events, assigning each to a calendar month. */
+/**
+ * Mirrors bootstrap-static's 38 events, assigning each to a calendar month.
+ *
+ * Keyed by season, so a new season's Gameweek 1 is a new row rather than an
+ * update of last year's. That is the whole rollover story: an update would
+ * have kept last year's `processed_at`, and a gameweek that reads as already
+ * processed is never scored.
+ */
 export async function syncGameweeks() {
   const cfg = getConfig();
   const db = getDb();
-  const events = await fetchEvents();
+  const events = [...(await fetchEvents())].sort((a, b) => a.id - b.id);
+  // Off the opening deadline, which is why the sort above matters.
+  const season = seasonOf(events[0].deadline_time);
 
   const rows = events.map((e) => ({
+    season,
     event: e.id,
     deadlineTime: new Date(e.deadline_time),
     monthKey: monthKeyOf(e.deadline_time, cfg.rules.timezone),
@@ -41,7 +54,7 @@ export async function syncGameweeks() {
     .insert(gameweeks)
     .values(rows)
     .onConflictDoUpdate({
-      target: gameweeks.event,
+      target: [gameweeks.season, gameweeks.event],
       set: {
         deadlineTime: sql`excluded.deadline_time`,
         monthKey: sql`excluded.month_key`,
@@ -51,17 +64,17 @@ export async function syncGameweeks() {
       },
     });
 
-  return rows;
+  return { season, rows };
 }
 
 /**
  * Mirrors the league roster.
  *
- * `joined_gw` and `joined_time` are written once and never overwritten —
- * `joined_time` only exists while a manager is unranked, so a later poll would
- * otherwise clear it and silently change which gameweeks count for them.
+ * Joining facts are written once and never overwritten — `joined_time` only
+ * exists while a manager is unranked, so a later poll would otherwise clear
+ * it and silently change which gameweeks count for them.
  */
-export async function syncMembers(deadlines: { event: number; deadlineTime: Date }[]) {
+export async function syncMembers(season: number, deadlines: { event: number; deadlineTime: Date }[]) {
   const cfg = getConfig();
   const db = getDb();
   const roster = await fetchLeagueRoster();
@@ -85,18 +98,17 @@ export async function syncMembers(deadlines: { event: number; deadlineTime: Date
     return { leagueName: roster.leagueName, count: 0, deactivated: 0 };
   }
 
-  const rows = roster.members.map((m) => ({
-    entryId: m.entryId,
-    entryName: m.entryName,
-    playerName: m.playerName,
-    joinedGw: joinedGameweek(m.joinedTime, deadlines) ?? deadlines.at(-1)?.event ?? 1,
-    joinedTime: m.joinedTime,
-    active: true,
-  }));
-
   await db
     .insert(managers)
-    .values(rows)
+    .values(
+      roster.members.map((m) => ({
+        entryId: m.entryId,
+        entryName: m.entryName,
+        playerName: m.playerName,
+        joinedTime: m.joinedTime,
+        active: true,
+      })),
+    )
     .onConflictDoUpdate({
       target: managers.entryId,
       set: {
@@ -107,6 +119,21 @@ export async function syncMembers(deadlines: { event: number; deadlineTime: Date
         joinedTime: sql`coalesce(${managers.joinedTime}, excluded.joined_time)`,
       },
     });
+
+  // Which gameweek is their first this season. A member carried over from
+  // last season has no join time by now and starts at Gameweek 1, which is
+  // right; a mid-season joiner is unranked while their join time is visible,
+  // and that first sighting is the one that sticks.
+  await db
+    .insert(managerSeasons)
+    .values(
+      roster.members.map((m) => ({
+        season,
+        entryId: m.entryId,
+        joinedGw: joinedGameweek(m.joinedTime, deadlines) ?? deadlines.at(-1)?.event ?? 1,
+      })),
+    )
+    .onConflictDoNothing();
 
   // Anyone absent from the roster has left, so stop counting them. Their rows
   // are kept: a gameweek they won stays won. The roster is fully paginated and
@@ -122,23 +149,24 @@ export async function syncMembers(deadlines: { event: number; deadlineTime: Date
         eq(managers.active, true),
         notInArray(
           managers.entryId,
-          rows.map((r) => r.entryId),
+          roster.members.map((m) => m.entryId),
         ),
       ),
     )
     .returning({ entryId: managers.entryId });
 
-  return { leagueName: roster.leagueName, count: rows.length, deactivated: deactivated.length };
+  return { leagueName: roster.leagueName, count: roster.members.length, deactivated: deactivated.length };
 }
 
 /** Everything that is safe to refresh regardless of gameweek state. */
 export async function syncReferenceData(): Promise<SyncResult> {
   const db = getDb();
+  let season: number;
   let events: { event: number; deadlineTime: Date }[];
   let degraded: string | null = null;
 
   try {
-    events = await syncGameweeks();
+    ({ season, rows: events } = await syncGameweeks());
   } catch (error) {
     // bootstrap-static is 1.4MB and cached only in memory, so a cold start
     // refetches it — which makes it the request most likely to be refused by
@@ -148,16 +176,18 @@ export async function syncReferenceData(): Promise<SyncResult> {
     // and the next run re-reads it minutes later; the poller asks what is
     // outstanding rather than what changed, so nothing is missed.
     const stored = await db
-      .select({ event: gameweeks.event, deadlineTime: gameweeks.deadlineTime })
+      .select({ season: gameweeks.season, event: gameweeks.event, deadlineTime: gameweeks.deadlineTime })
       .from(gameweeks)
       .orderBy(asc(gameweeks.event));
 
     if (stored.length === 0) throw error;
 
-    events = stored;
+    // The newest season stored is the one in play.
+    season = Math.max(...stored.map((s) => s.season));
+    events = stored.filter((s) => s.season === season);
     degraded = error instanceof Error ? error.message : String(error);
   }
 
-  const { leagueName, count, deactivated } = await syncMembers(events);
-  return { gameweeks: events.length, members: count, leagueName, deactivated, degraded };
+  const { leagueName, count, deactivated } = await syncMembers(season, events);
+  return { season, gameweeks: events.length, members: count, leagueName, deactivated, degraded };
 }

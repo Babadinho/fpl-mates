@@ -11,6 +11,7 @@ import { getConfig } from './config';
 import { maskManagers } from './anonymise';
 import { getDb } from './db';
 import { entryPicks, gameweeks, managers } from './db/schema';
+import { currentSeason } from './season';
 import { mockLeague } from './fixtures/mock';
 import { mockSquad } from './fixtures/squads';
 import { fetchBootstrap, fetchFixtures, fetchLiveEvent } from './fpl/client';
@@ -119,13 +120,28 @@ function fromFixtures(entryId: number, event: number): SquadView | null {
 async function fromDatabase(entryId: number, event: number): Promise<SquadView | null> {
   const db = getDb();
 
+  // Every table on the page is the season in play, so that is the only squad
+  // a row can open.
+  const season = await currentSeason();
+  if (season === null) return null;
+
   const [[stored], [week], [picks]] = await Promise.all([
     db.select().from(managers).where(eq(managers.entryId, entryId)).limit(1),
-    db.select().from(gameweeks).where(eq(gameweeks.event, event)).limit(1),
+    db
+      .select()
+      .from(gameweeks)
+      .where(and(eq(gameweeks.season, season), eq(gameweeks.event, event)))
+      .limit(1),
     db
       .select()
       .from(entryPicks)
-      .where(and(eq(entryPicks.entryId, entryId), eq(entryPicks.event, event)))
+      .where(
+        and(
+          eq(entryPicks.season, season),
+          eq(entryPicks.entryId, entryId),
+          eq(entryPicks.event, event),
+        ),
+      )
       .limit(1),
   ]);
 

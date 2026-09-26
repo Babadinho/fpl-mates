@@ -7,9 +7,10 @@
  */
 import { asc, desc, eq, inArray } from 'drizzle-orm';
 import { getConfig, TIEBREAK_LABELS, TIEBREAK_STEPS, type TiebreakKey } from './config';
-import { maskManagers } from './anonymise';
 import { getDb } from './db';
-import { gameweeks, league, managers as managersTable, gwScores, pollRuns } from './db/schema';
+import { gameweeks, league, gwScores, pollRuns } from './db/schema';
+import { activeRoster } from './roster';
+import { currentSeason, seasonOf } from './season';
 import { mockLeague } from './fixtures/mock';
 import { getLiveState, type LiveFixture, type LiveState } from './live';
 import { groupByMonth, monthLabel, monthShortLabel } from './scoring/month';
@@ -177,6 +178,8 @@ export interface LeaderboardView {
 }
 
 interface SourceData {
+  /** The year the season opened: 2026 for 2026/27. */
+  season: number;
   leagueName: string;
   managers: ManagerRef[];
   /** Roster with join times, for the pre-season "managers in" table. */
@@ -323,6 +326,7 @@ export function monthMeta(
 function fromFixtures(timezone: string): SourceData {
   const mock = mockLeague();
   return {
+    season: seasonOf(mock.gameweeks[0].deadlineTime),
     leagueName: mock.leagueName,
     managers: mock.managers,
     joined: mock.managers.map((m, i) => ({
@@ -349,10 +353,14 @@ async function fromDatabase(): Promise<SourceData> {
   const cfg = getConfig();
   const db = getDb();
 
+  // Nothing synced yet reads as no season, and a season nothing matches
+  // renders the same empty page an empty database always has.
+  const season = (await currentSeason()) ?? 0;
+
   const [weeks, roster, scores, leagueRows, lastRun] = await Promise.all([
-    db.select().from(gameweeks).orderBy(asc(gameweeks.event)),
-    db.select().from(managersTable).where(eq(managersTable.active, true)),
-    db.select().from(gwScores),
+    db.select().from(gameweeks).where(eq(gameweeks.season, season)).orderBy(asc(gameweeks.event)),
+    activeRoster(season),
+    db.select().from(gwScores).where(eq(gwScores.season, season)),
     db.select().from(league).where(eq(league.id, cfg.leagueId)).limit(1),
     db
       .select({ finishedAt: pollRuns.finishedAt })
@@ -362,17 +370,16 @@ async function fromDatabase(): Promise<SourceData> {
       .limit(1),
   ]);
 
-  const named = maskManagers(roster);
-
   return {
+    season,
     leagueName: leagueRows[0]?.name ?? 'FPL Gaffer',
-    managers: named.map((m) => ({
+    managers: roster.map((m) => ({
       entryId: m.entryId,
       playerName: m.playerName,
       entryName: m.entryName,
       joinedGw: m.joinedGw,
     })),
-    joined: named.map((m) => ({
+    joined: roster.map((m) => ({
       entryId: m.entryId,
       playerName: m.playerName,
       entryName: m.entryName,
@@ -542,7 +549,7 @@ export async function getLeaderboardView(): Promise<LeaderboardView> {
   if (cfg.live.enabled && !cfg.useFixtures) {
     const upcoming = source.weeks.find((w) => !w.dataChecked);
     if (upcoming && Date.now() >= livePausedUntil) {
-      const work = getLiveState(upcoming.event);
+      const work = getLiveState(source.season, upcoming.event);
 
       // `withBudget` only stops listening — the request is already in flight
       // and finishes regardless. A refused request is retried over about

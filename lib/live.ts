@@ -15,9 +15,9 @@
  */
 import { and, eq, inArray } from 'drizzle-orm';
 import { getConfig } from './config';
-import { maskManagers } from './anonymise';
 import { getDb } from './db';
-import { entryPicks, gameweeks, managers } from './db/schema';
+import { activeRoster } from './roster';
+import { entryPicks, gameweeks } from './db/schema';
 import { fetchBootstrap, fetchEntryPicks, fetchFixtures, fetchLiveEvent, FplApiError, mapWithConcurrency } from './fpl/client';
 import { CHIP_LABELS, type FplPick } from './fpl/schemas';
 import { predictSubs } from './scoring/subs';
@@ -57,7 +57,7 @@ export interface LiveState {
 }
 
 /** Ensures every manager's picks for this gameweek are cached, then returns them. */
-async function loadPicks(refs: ManagerRef[], event: number) {
+async function loadPicks(refs: ManagerRef[], season: number, event: number) {
   const cfg = getConfig();
   const db = getDb();
 
@@ -66,6 +66,7 @@ async function loadPicks(refs: ManagerRef[], event: number) {
     .from(entryPicks)
     .where(
       and(
+        eq(entryPicks.season, season),
         eq(entryPicks.event, event),
         inArray(
           entryPicks.entryId,
@@ -98,6 +99,7 @@ async function loadPicks(refs: ManagerRef[], event: number) {
         picks.picks.find(match)?.position ?? null;
 
       return {
+        season,
         entryId: manager.entryId,
         event,
         elementIds: picks.picks.map((p) => p.element),
@@ -136,7 +138,7 @@ function formatKickoff(iso: string | null, timezone: string): string {
  * Returns null when nothing has kicked off — there is no live table to show
  * before the first whistle, only a fixture list.
  */
-export async function getLiveState(event: number): Promise<LiveState | null> {
+export async function getLiveState(season: number, event: number): Promise<LiveState | null> {
   const cfg = getConfig();
   const db = getDb();
 
@@ -197,7 +199,7 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
   const [week] = await db
     .select({ deadline: gameweeks.deadlineTime })
     .from(gameweeks)
-    .where(eq(gameweeks.event, event))
+    .where(and(eq(gameweeks.season, season), eq(gameweeks.event, event)))
     .limit(1);
   const locked = week !== undefined && week.deadline.getTime() <= fetchedAt.getTime();
 
@@ -235,15 +237,9 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
   const bonusByElement = provisionalBonusByElement(bpsByFixture);
 
   // ---- manager scores
-  const roster = maskManagers(await db.select().from(managers).where(eq(managers.active, true)));
-  const refs: ManagerRef[] = roster.map((m) => ({
-    entryId: m.entryId,
-    playerName: m.playerName,
-    entryName: m.entryName,
-    joinedGw: m.joinedGw,
-  }));
+  const refs: ManagerRef[] = await activeRoster(season);
 
-  const picks = await loadPicks(refs, event);
+  const picks = await loadPicks(refs, season, event);
   const rows: ScoreRow[] = [];
   const provisionalBonus = new Map<number, number>();
 
@@ -327,10 +323,6 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
 }
 
 /**
- * The gameweek currently worth showing live: the first one that has not
- * settled. Null once the season is over.
- */
-/**
  * Fetches and caches picks for a gameweek that has kicked off, without scoring
  * anything.
  *
@@ -342,42 +334,20 @@ export async function getLiveState(event: number): Promise<LiveState | null> {
  * Returns how many were fetched — zero once the cache is warm, which is every
  * run after the first.
  */
-export async function warmPicks(event: number): Promise<number> {
+export async function warmPicks(season: number, event: number): Promise<number> {
   const db = getDb();
-  const roster = await db.select().from(managers).where(eq(managers.active, true));
+  const roster = await activeRoster(season);
   if (roster.length === 0) return 0;
 
-  const before = await db
-    .select({ entryId: entryPicks.entryId })
-    .from(entryPicks)
-    .where(eq(entryPicks.event, event));
+  const cached = () =>
+    db
+      .select({ entryId: entryPicks.entryId })
+      .from(entryPicks)
+      .where(and(eq(entryPicks.season, season), eq(entryPicks.event, event)));
 
-  await loadPicks(
-    roster.map((m) => ({
-      entryId: m.entryId,
-      playerName: m.playerName,
-      entryName: m.entryName,
-      joinedGw: m.joinedGw,
-    })),
-    event,
-  );
-
-  const after = await db
-    .select({ entryId: entryPicks.entryId })
-    .from(entryPicks)
-    .where(eq(entryPicks.event, event));
+  const before = await cached();
+  await loadPicks(roster, season, event);
+  const after = await cached();
 
   return after.length - before.length;
-}
-
-export async function liveGameweek(): Promise<{ event: number; deadline: Date } | null> {
-  const db = getDb();
-  const [next] = await db
-    .select()
-    .from(gameweeks)
-    .where(eq(gameweeks.dataChecked, false))
-    .orderBy(gameweeks.event)
-    .limit(1);
-
-  return next ? { event: next.event, deadline: next.deadlineTime } : null;
 }

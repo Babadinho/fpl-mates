@@ -366,6 +366,17 @@ rows**, not only computed tables. Any scoring rule — tie-break order, the
 pre-join question — can then be recalculated retroactively without refetching
 anything from the API.
 
+Everything scored is keyed by **season** as well as gameweek — `gameweeks`,
+`gw_scores`, `weekly_winners`, `entry_picks` — and a manager's `joined_gw`
+lives in `manager_seasons` rather than on the identity row. FPL numbers every
+season 1 to 38 and resets histories each August, so without the season in the
+key the next August's Gameweek 1 upserted over the last one's, inherited its
+`processed_at`, and was never scored: the poller reported "nothing awaiting
+processing" every run and nothing looked wrong. The season is the year the
+opening deadline falls in (`lib/season.ts`), read off bootstrap in
+`syncGameweeks`; every read path filters on `currentSeason()`, the newest
+stored. `monthly_winners` needs none — `month_key` carries the year.
+
 Migrations run over the **direct** connection (`DATABASE_URL_UNPOOLED`);
 drizzle-kit needs a session-level connection and fails over a pooler. The app
 uses the pooled one, because serverless functions open many short-lived

@@ -18,13 +18,13 @@
  *      no separate backfill script.
  */
 import { and, asc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
-import { maskManagers } from './anonymise';
 import { getConfig } from './config';
 import { getDb } from './db';
-import { gameweeks, gwScores, managers, monthlyWinners, pollRuns, weeklyWinners } from './db/schema';
+import { gameweeks, gwScores, monthlyWinners, pollRuns, weeklyWinners } from './db/schema';
 import { fetchEntryHistory, mapWithConcurrency } from './fpl/client';
 import { CHIP_LABELS, type FplHistoryEntry } from './fpl/schemas';
 import { warmPicks } from './live';
+import { activeRoster } from './roster';
 import { settleEntries } from './settle';
 import { declareWinner, monthlyTable, pointsAfterCost, weeklyTable, type ManagerRef, type ScoreRow } from './scoring/tables';
 import { syncReferenceData } from './sync';
@@ -124,13 +124,20 @@ export async function runPoll(): Promise<PollResult> {
     // Recorded rather than raised: the run went ahead on stored gameweeks, and
     // a failure people are trained to ignore is worse than none at all.
     const stale = sync.degraded ? ` (gameweeks stale: ${sync.degraded})` : '';
+    const { season } = sync;
 
-    await warmPicksForKickedOffGameweek();
+    await warmPicksForKickedOffGameweek(season);
 
     const pending = await db
       .select()
       .from(gameweeks)
-      .where(and(eq(gameweeks.dataChecked, true), isNull(gameweeks.processedAt)))
+      .where(
+        and(
+          eq(gameweeks.season, season),
+          eq(gameweeks.dataChecked, true),
+          isNull(gameweeks.processedAt),
+        ),
+      )
       .orderBy(asc(gameweeks.event));
 
     if (pending.length === 0) {
@@ -141,22 +148,15 @@ export async function runPoll(): Promise<PollResult> {
       });
     }
 
-    const roster = await db.select().from(managers).where(eq(managers.active, true));
-    if (roster.length === 0) {
+    // Comes masked, so a Telegram post names the winner exactly as the page does.
+    const refs: ManagerRef[] = await activeRoster(season);
+    if (refs.length === 0) {
       return finish({
         outcome: 'skipped',
         detail: `league has no members yet${stale}`,
         processed: [],
       });
     }
-
-    // Masked so a Telegram post names the winner exactly as the page does.
-    const refs: ManagerRef[] = maskManagers(roster).map((m) => ({
-      entryId: m.entryId,
-      playerName: m.playerName,
-      entryName: m.entryName,
-      joinedGw: m.joinedGw,
-    }));
 
     const histories = await fetchHistories(refs);
     const options = {
@@ -186,7 +186,7 @@ export async function runPoll(): Promise<PollResult> {
           await db
             .update(gameweeks)
             .set({ processedAt: new Date() })
-            .where(eq(gameweeks.event, week.event));
+            .where(and(eq(gameweeks.season, season), eq(gameweeks.event, week.event)));
           empty.push(week.event);
         }
         continue;
@@ -213,6 +213,7 @@ export async function runPoll(): Promise<PollResult> {
         .insert(gwScores)
         .values(
           rows.map((row) => ({
+            season,
             entryId: row.entryId,
             event: row.event,
             grossPoints: row.grossPoints,
@@ -225,7 +226,7 @@ export async function runPoll(): Promise<PollResult> {
           })),
         )
         .onConflictDoUpdate({
-          target: [gwScores.entryId, gwScores.event],
+          target: [gwScores.season, gwScores.entryId, gwScores.event],
           set: {
             grossPoints: sql`excluded.gross_points`,
             transferCost: sql`excluded.transfer_cost`,
@@ -249,6 +250,7 @@ export async function runPoll(): Promise<PollResult> {
         await db
           .insert(weeklyWinners)
           .values({
+            season,
             event: week.event,
             entryId: weekWinner.entryId,
             points: weekWinner.points,
@@ -256,7 +258,7 @@ export async function runPoll(): Promise<PollResult> {
             decidedBy: weekWinner.decidedBy,
           })
           .onConflictDoUpdate({
-            target: weeklyWinners.event,
+            target: [weeklyWinners.season, weeklyWinners.event],
             set: {
               entryId: sql`excluded.entry_id`,
               points: sql`excluded.points`,
@@ -269,12 +271,12 @@ export async function runPoll(): Promise<PollResult> {
       await db
         .update(gameweeks)
         .set({ processedAt: new Date() })
-        .where(eq(gameweeks.event, week.event));
+        .where(and(eq(gameweeks.season, season), eq(gameweeks.event, week.event)));
 
       processed.push(week.event);
 
       // ---- monthly winner, only once every gameweek in the month has settled
-      await declareMonthIfComplete(week.monthKey, refs, options);
+      await declareMonthIfComplete(season, week.monthKey, refs, options);
     }
 
     // A first run backfills the whole season at once, and so does a rebuilt
@@ -286,11 +288,15 @@ export async function runPoll(): Promise<PollResult> {
         .update(weeklyWinners)
         .set({ postedAt: new Date() })
         .where(
-          and(inArray(weeklyWinners.event, processed.slice(0, -1)), isNull(weeklyWinners.postedAt)),
+          and(
+            eq(weeklyWinners.season, season),
+            inArray(weeklyWinners.event, processed.slice(0, -1)),
+            isNull(weeklyWinners.postedAt),
+          ),
         );
     }
     if (processed.length > 0) {
-      await announceSettled(processed[processed.length - 1]);
+      await announceSettled(season, processed[processed.length - 1]);
     }
 
     const detail = [
@@ -322,7 +328,7 @@ export async function runPoll(): Promise<PollResult> {
  * must not stop a gameweek being scored. The live table still fills its own
  * cache on demand, exactly as before.
  */
-async function warmPicksForKickedOffGameweek(): Promise<void> {
+async function warmPicksForKickedOffGameweek(season: number): Promise<void> {
   const cfg = getConfig();
   if (!cfg.live.enabled) return;
 
@@ -330,14 +336,20 @@ async function warmPicksForKickedOffGameweek(): Promise<void> {
   const [next] = await db
     .select()
     .from(gameweeks)
-    .where(and(eq(gameweeks.dataChecked, false), lte(gameweeks.deadlineTime, new Date())))
+    .where(
+      and(
+        eq(gameweeks.season, season),
+        eq(gameweeks.dataChecked, false),
+        lte(gameweeks.deadlineTime, new Date()),
+      ),
+    )
     .orderBy(asc(gameweeks.event))
     .limit(1);
 
   if (!next) return;
 
   try {
-    await warmPicks(next.event);
+    await warmPicks(season, next.event);
   } catch {
     // Logged by nothing on purpose: the next run retries, and the page still works.
   }
@@ -349,13 +361,13 @@ async function warmPicksForKickedOffGameweek(): Promise<void> {
  * Guarded by weekly_winners.posted_at rather than by the caller, so a re-run
  * that reprocesses a gameweek still cannot repost it.
  */
-async function announceSettled(event: number) {
+async function announceSettled(season: number, event: number) {
   const db = getDb();
 
   const [row] = await db
     .select({ postedAt: weeklyWinners.postedAt })
     .from(weeklyWinners)
-    .where(eq(weeklyWinners.event, event))
+    .where(and(eq(weeklyWinners.season, season), eq(weeklyWinners.event, event)))
     .limit(1);
 
   if (!row || row.postedAt) return;
@@ -367,7 +379,7 @@ async function announceSettled(event: number) {
     await db
       .update(weeklyWinners)
       .set({ postedAt: new Date() })
-      .where(eq(weeklyWinners.event, event));
+      .where(and(eq(weeklyWinners.season, season), eq(weeklyWinners.event, event)));
   }
 }
 
@@ -379,17 +391,21 @@ async function announceSettled(event: number) {
  * so completeness is "no unchecked gameweeks share this month key", not a count.
  */
 async function declareMonthIfComplete(
+  season: number,
   monthKey: string,
   refs: ManagerRef[],
   options: { countPrejoinGws: boolean; tiebreakOrder: readonly import('./config').TiebreakKey[] },
 ) {
   const db = getDb();
 
-  const weeks = await db.select().from(gameweeks).where(eq(gameweeks.monthKey, monthKey));
+  const weeks = await db
+    .select()
+    .from(gameweeks)
+    .where(and(eq(gameweeks.season, season), eq(gameweeks.monthKey, monthKey)));
   if (weeks.some((w) => !w.dataChecked)) return;
 
   const events = weeks.map((w) => w.event);
-  const stored = await db.select().from(gwScores);
+  const stored = await db.select().from(gwScores).where(eq(gwScores.season, season));
   const rows: ScoreRow[] = stored
     .filter((s) => events.includes(s.event))
     .map((s) => ({

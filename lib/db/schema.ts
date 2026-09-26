@@ -4,9 +4,14 @@
  * The design principle worth preserving: `gw_scores` holds RAW per-gameweek
  * rows, not just computed tables. Any scoring rule can then be recalculated
  * retroactively without refetching a single thing from the FPL API.
+ *
+ * Everything scored is keyed by season as well as gameweek. FPL numbers every
+ * season 1 to 38, so without it the next August's Gameweek 1 lands on the
+ * last one's row. See lib/season.ts for where the number comes from.
  */
 import {
   boolean,
+  foreignKey,
   index,
   integer,
   pgTable,
@@ -28,7 +33,12 @@ export const league = pgTable('league', {
   syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Members of the mini-league, as discovered from the standings endpoint. */
+/**
+ * Members of the mini-league, as discovered from the standings endpoint.
+ *
+ * Identity only. What changes season to season — which gameweek counts as
+ * their first — lives in `manager_seasons`.
+ */
 export const managers = pgTable('managers', {
   /** FPL manager ID (`entry` in the standings response). The join key. */
   entryId: integer('entry_id').primaryKey(),
@@ -36,11 +46,6 @@ export const managers = pgTable('managers', {
   entryName: text('entry_name').notNull(),
   /** Their real name. */
   playerName: text('player_name').notNull(),
-  /**
-   * First gameweek that counts for them, derived from `joined_time` — the
-   * first gameweek whose deadline falls after they joined.
-   */
-  joinedGw: smallint('joined_gw').notNull(),
   /**
    * When they joined the league. Supplied by the API only while a manager is
    * unranked (`new_entries`); it is gone once they appear in the standings,
@@ -52,10 +57,29 @@ export const managers = pgTable('managers', {
   firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** The 38 gameweeks, mirrored from bootstrap-static. */
+/**
+ * The season-scoped half of a manager: which gameweek counts as their first.
+ *
+ * Kept off `managers` because it changes every season while the person does
+ * not. Somebody who joined at Gameweek 10 starts the next season at Gameweek
+ * 1, and a single joined_gw on the identity row would carry the 10 across
+ * and quietly drop them from nine gameweeks.
+ */
+export const managerSeasons = pgTable('manager_seasons', {
+  season: smallint('season').notNull(),
+  entryId: integer('entry_id')
+    .notNull()
+    .references(() => managers.entryId, { onDelete: 'cascade' }),
+  /** The first gameweek whose deadline fell after they joined. */
+  joinedGw: smallint('joined_gw').notNull(),
+}, (t) => [primaryKey({ columns: [t.season, t.entryId] })]);
+
+/** The 38 gameweeks of one season, mirrored from bootstrap-static. */
 export const gameweeks = pgTable('gameweeks', {
+  /** The year the season opened: 2026 for 2026/27. */
+  season: smallint('season').notNull(),
   /** Gameweek number, 1–38. */
-  event: smallint('event').primaryKey(),
+  event: smallint('event').notNull(),
   deadlineTime: timestamp('deadline_time', { withTimezone: true }).notNull(),
   /**
    * Calendar month this gameweek scores into, as `YYYY-MM`, computed from
@@ -71,16 +95,18 @@ export const gameweeks = pgTable('gameweeks', {
   averageEntryScore: smallint('average_entry_score'),
   /** Set once the poller has written scores for this gameweek. Idempotency guard. */
   processedAt: timestamp('processed_at', { withTimezone: true }),
-}, (t) => [index('gameweeks_month_key_idx').on(t.monthKey)]);
+}, (t) => [
+  primaryKey({ columns: [t.season, t.event] }),
+  index('gameweeks_month_key_idx').on(t.monthKey),
+]);
 
 /** One row per manager per gameweek. The source of truth for all scoring. */
 export const gwScores = pgTable('gw_scores', {
+  season: smallint('season').notNull(),
   entryId: integer('entry_id')
     .notNull()
     .references(() => managers.entryId, { onDelete: 'cascade' }),
-  event: smallint('event')
-    .notNull()
-    .references(() => gameweeks.event, { onDelete: 'cascade' }),
+  event: smallint('event').notNull(),
   /** `points` from the history endpoint — GROSS, before transfer hits. */
   grossPoints: smallint('gross_points').notNull(),
   /** `event_transfers_cost`, a positive number. */
@@ -105,15 +131,19 @@ export const gwScores = pgTable('gw_scores', {
   chipUsed: text('chip_used'),
   fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  primaryKey({ columns: [t.entryId, t.event] }),
-  index('gw_scores_event_idx').on(t.event),
+  primaryKey({ columns: [t.season, t.entryId, t.event] }),
+  foreignKey({
+    columns: [t.season, t.event],
+    foreignColumns: [gameweeks.season, gameweeks.event],
+    name: 'gw_scores_season_event_fk',
+  }).onDelete('cascade'),
+  index('gw_scores_season_event_idx').on(t.season, t.event),
 ]);
 
 /** Declared once a gameweek settles. One row per gameweek. */
 export const weeklyWinners = pgTable('weekly_winners', {
-  event: smallint('event')
-    .primaryKey()
-    .references(() => gameweeks.event, { onDelete: 'cascade' }),
+  season: smallint('season').notNull(),
+  event: smallint('event').notNull(),
   entryId: integer('entry_id')
     .notNull()
     .references(() => managers.entryId, { onDelete: 'cascade' }),
@@ -128,9 +158,20 @@ export const weeklyWinners = pgTable('weekly_winners', {
   declaredAt: timestamp('declared_at', { withTimezone: true }).notNull().defaultNow(),
   /** Set once announced, so a reprocessed gameweek is never posted twice. */
   postedAt: timestamp('posted_at', { withTimezone: true }),
-});
+}, (t) => [
+  primaryKey({ columns: [t.season, t.event] }),
+  foreignKey({
+    columns: [t.season, t.event],
+    foreignColumns: [gameweeks.season, gameweeks.event],
+    name: 'weekly_winners_season_event_fk',
+  }).onDelete('cascade'),
+]);
 
-/** Declared once the final gameweek of a calendar month settles. */
+/**
+ * Declared once the final gameweek of a calendar month settles.
+ *
+ * No season column: `month_key` carries the year, so months never collide.
+ */
 export const monthlyWinners = pgTable('monthly_winners', {
   /** `YYYY-MM`, matching gameweeks.month_key. */
   monthKey: text('month_key').primaryKey(),
@@ -163,12 +204,11 @@ export const pollRuns = pgTable('poll_runs', {
  * live refresh would cost one request per manager instead of one in total.
  */
 export const entryPicks = pgTable('entry_picks', {
+  season: smallint('season').notNull(),
   entryId: integer('entry_id')
     .notNull()
     .references(() => managers.entryId, { onDelete: 'cascade' }),
-  event: smallint('event')
-    .notNull()
-    .references(() => gameweeks.event, { onDelete: 'cascade' }),
+  event: smallint('event').notNull(),
   /** Element ids in pick order, positions 1–15. */
   elementIds: integer('element_ids').array().notNull(),
   /** Parallel to elementIds: 0 benched, 1 playing, 2 captain, 3 triple captain. */
@@ -190,4 +230,11 @@ export const entryPicks = pgTable('entry_picks', {
   activeChip: text('active_chip'),
   transferCost: smallint('transfer_cost').notNull().default(0),
   fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [primaryKey({ columns: [t.entryId, t.event] })]);
+}, (t) => [
+  primaryKey({ columns: [t.season, t.entryId, t.event] }),
+  foreignKey({
+    columns: [t.season, t.event],
+    foreignColumns: [gameweeks.season, gameweeks.event],
+    name: 'entry_picks_season_event_fk',
+  }).onDelete('cascade'),
+]);

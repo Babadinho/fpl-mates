@@ -12,7 +12,8 @@ import { getConfig } from '@/lib/config';
 import { getDb } from '@/lib/db';
 import { gameweeks } from '@/lib/db/schema';
 import { getLiveState } from '@/lib/live';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
+import { currentSeason } from '@/lib/season';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -55,7 +56,12 @@ export async function GET() {
   const db = getDb();
 
   const dbStartedAt = Date.now();
-  const weeks = await db.select().from(gameweeks).orderBy(asc(gameweeks.event));
+  const season = (await currentSeason()) ?? 0;
+  const weeks = await db
+    .select()
+    .from(gameweeks)
+    .where(eq(gameweeks.season, season))
+    .orderBy(asc(gameweeks.event));
   const database = { ms: Date.now() - dbStartedAt, gameweeks: weeks.length };
 
   // The gameweek the page would ask about: the first one not yet settled.
@@ -72,7 +78,7 @@ export async function GET() {
   const liveStartedAt = Date.now();
   let live: Record<string, unknown>;
   try {
-    const state = await getLiveState(event);
+    const state = await getLiveState(season, event);
     live = {
       ok: true,
       ms: Date.now() - liveStartedAt,
