@@ -1,8 +1,7 @@
 # Internals
 
 How each part of the app works, for people changing it. For what the project is
-and how to deploy it, see the README; for what is still unbuilt, see
-[ROADMAP.md](ROADMAP.md); for the original specification, see
+and how to deploy it, see the README; for the original specification, see
 [technical-brief.md](technical-brief.md).
 
 ---

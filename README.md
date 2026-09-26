@@ -366,7 +366,6 @@ pnpm db:check    # verify both connection strings answer
 ## Documentation
 
 - [docs/internals.md](docs/internals.md) — how each part works, and why
-- [docs/ROADMAP.md](docs/ROADMAP.md) — what is not built yet
 - [docs/technical-brief.md](docs/technical-brief.md) — the original specification
 
 ---
