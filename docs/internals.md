@@ -152,9 +152,15 @@ get exactly those weeks wrong.
 Mirrors reference data: the league row, the 38 gameweeks, and the membership.
 Every write is an upsert, so it is safe on every poll (gotcha 6).
 
-`joined_time` and `joined_gw` are written once and **never overwritten** — a
-later poll would otherwise clear `joined_time` (it vanishes once a manager is
-ranked) and silently change which gameweeks count for them.
+`joined_time` (on `managers`) and `joined_gw` (on `manager_seasons`, once per
+season) are written once and **never overwritten** — a later poll would
+otherwise clear `joined_time` (it vanishes once a manager is ranked) and
+silently change which gameweeks count for them.
+
+Two rollover cases. Joining after a season's final deadline writes no
+`manager_seasons` row for it; the row comes with next season's gameweeks.
+And a season whose roster comes back empty starts with every active manager
+at its first gameweek, so the pre-season page is not blank during FPL's reset.
 
 That vanishing is also a hard limit on adopting this mid-season: members who
 were already ranked at first poll have no recoverable join date, so

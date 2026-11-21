@@ -37,6 +37,7 @@ export async function syncGameweeks() {
   const cfg = getConfig();
   const db = getDb();
   const events = [...(await fetchEvents())].sort((a, b) => a.id - b.id);
+  if (events.length === 0) throw new Error('bootstrap-static returned no gameweeks');
   // Off the opening deadline, which is why the sort above matters.
   const season = seasonOf(events[0].deadline_time);
 
@@ -94,7 +95,29 @@ export async function syncMembers(season: number, deadlines: { event: number; de
   // An empty roster is never taken as "everybody left" — before the first
   // deadline the API can legitimately return nothing, and deactivating the
   // whole league on one odd response is not a recoverable mistake.
+  //
+  // A season with no members yet starts with last season's active ones, at
+  // its first gameweek. Without them the new season's page is empty, since
+  // the roster only reads members who have a row for the season.
   if (roster.members.length === 0) {
+    const [started] = await db
+      .select({ entryId: managerSeasons.entryId })
+      .from(managerSeasons)
+      .where(eq(managerSeasons.season, season))
+      .limit(1);
+    const first = deadlines[0]?.event;
+    if (!started && first !== undefined) {
+      const carried = await db
+        .select({ entryId: managers.entryId })
+        .from(managers)
+        .where(eq(managers.active, true));
+      if (carried.length > 0) {
+        await db
+          .insert(managerSeasons)
+          .values(carried.map((m) => ({ season, entryId: m.entryId, joinedGw: first })))
+          .onConflictDoNothing();
+      }
+    }
     return { leagueName: roster.leagueName, count: 0, deactivated: 0 };
   }
 
@@ -124,16 +147,16 @@ export async function syncMembers(season: number, deadlines: { event: number; de
   // last season has no join time by now and starts at Gameweek 1, which is
   // right; a mid-season joiner is unranked while their join time is visible,
   // and that first sighting is the one that sticks.
-  await db
-    .insert(managerSeasons)
-    .values(
-      roster.members.map((m) => ({
-        season,
-        entryId: m.entryId,
-        joinedGw: joinedGameweek(m.joinedTime, deadlines) ?? deadlines.at(-1)?.event ?? 1,
-      })),
-    )
-    .onConflictDoNothing();
+  //
+  // Joining after the final deadline gets no row: they are not in this season,
+  // and get their row once next season's gameweeks are synced.
+  const seasonRows = roster.members.flatMap((m) => {
+    const joinedGw = joinedGameweek(m.joinedTime, deadlines);
+    return joinedGw === null ? [] : [{ season, entryId: m.entryId, joinedGw }];
+  });
+  if (seasonRows.length > 0) {
+    await db.insert(managerSeasons).values(seasonRows).onConflictDoNothing();
+  }
 
   // Anyone absent from the roster has left, so stop counting them. Their rows
   // are kept: a gameweek they won stays won. The roster is fully paginated and

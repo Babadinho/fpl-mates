@@ -10,6 +10,10 @@ const fetchLeagueRoster = vi.fn();
 
 /** Rows the fake database returns for `select ... from gameweeks`. */
 let stored: { season: number; event: number; deadlineTime: Date }[] = [];
+/** Results for the next selects, in order; `stored` once it runs out. */
+let selects: unknown[][] = [];
+/** Every `.values(...)` argument, in order. */
+let inserted: unknown[][] = [];
 
 vi.mock('./fpl/client', () => ({
   fetchEvents: () => fetchEvents(),
@@ -25,8 +29,8 @@ vi.mock('./db', () => ({
     // Drizzle's builders chain and are awaited at the end, so one thenable
     // proxy standing in for every method covers the calls this module makes.
     const chain: Record<string, unknown> = {};
+    let selecting = false;
     for (const method of [
-      'select',
       'from',
       'orderBy',
       'where',
@@ -35,13 +39,16 @@ vi.mock('./db', () => ({
       'values',
       'onConflictDoUpdate',
       'onConflictDoNothing',
-      'update',
       'set',
     ]) {
       chain[method] = () => chain;
     }
+    chain.select = () => ((selecting = true), chain);
+    chain.insert = chain.update = () => ((selecting = false), chain);
+    chain.values = (rows: unknown[]) => (inserted.push(rows), chain);
     chain.returning = () => Promise.resolve([]);
-    chain.then = (resolve: (v: unknown) => unknown) => Promise.resolve(stored).then(resolve);
+    chain.then = (resolve: (v: unknown) => unknown) =>
+      Promise.resolve(selecting && selects.length > 0 ? selects.shift() : stored).then(resolve);
     return chain;
   },
 }));
@@ -135,5 +142,66 @@ describe('syncReferenceData when bootstrap is refused', () => {
     expect(result.degraded).toBeNull();
     expect(result.season).toBe(2026);
     expect(result.gameweeks).toBe(1);
+  });
+});
+
+/** Rows written to manager_seasons, picked out by their shape. */
+const seasonRows = () => inserted.flat().filter((r) => typeof r === 'object' && r !== null && 'joinedGw' in r);
+
+const pastSeason = [
+  { id: 1, deadline_time: '2026-08-21T17:30:00Z', finished: true, data_checked: true, average_entry_score: 50 },
+  { id: 2, deadline_time: '2026-08-28T17:30:00Z', finished: true, data_checked: true, average_entry_score: 50 },
+];
+
+describe('syncMembers at the season boundary', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    fetchEvents.mockReset();
+    fetchLeagueRoster.mockReset();
+    stored = [];
+    selects = [];
+    inserted = [];
+  });
+
+  it('gives no season row to someone who joined after its final deadline', async () => {
+    fetchEvents.mockResolvedValue(pastSeason);
+    fetchLeagueRoster.mockResolvedValue({
+      ...roster,
+      members: [
+        roster.members[0],
+        { entryId: 2, entryName: 'Late FC', playerName: 'Lou', ranked: false, joinedTime: new Date('2027-06-01T00:00:00Z') },
+      ],
+    });
+
+    const { syncReferenceData } = await import('./sync');
+    await syncReferenceData();
+
+    // Alice was there all along; Lou belongs to next season, not GW2 of this one.
+    expect(seasonRows()).toEqual([{ season: 2026, entryId: 1, joinedGw: 1 }]);
+  });
+
+  it('carries active managers into a season whose roster is empty', async () => {
+    fetchEvents.mockResolvedValue(pastSeason);
+    fetchLeagueRoster.mockResolvedValue({ ...roster, members: [] });
+    selects = [[], [{ entryId: 1 }, { entryId: 2 }]];
+
+    const { syncReferenceData } = await import('./sync');
+    await syncReferenceData();
+
+    expect(seasonRows()).toEqual([
+      { season: 2026, entryId: 1, joinedGw: 1 },
+      { season: 2026, entryId: 2, joinedGw: 1 },
+    ]);
+  });
+
+  it('carries nobody once the season already has members', async () => {
+    fetchEvents.mockResolvedValue(pastSeason);
+    fetchLeagueRoster.mockResolvedValue({ ...roster, members: [] });
+    selects = [[{ entryId: 1 }]];
+
+    const { syncReferenceData } = await import('./sync');
+    await syncReferenceData();
+
+    expect(seasonRows()).toEqual([]);
   });
 });
