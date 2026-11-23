@@ -247,73 +247,45 @@ WhatsApp publisher.
 
 A missing optional variable turns a feature off. It never breaks the poller.
 
-### One database per league
+### Switching leagues
 
-`FPL_LEAGUE_ID` is not a switch you can flip on a running instance. Only the
-`league` table is keyed by league id — managers, scores and winners are not —
-so pointing an existing database at a different league leaves the previous
-league's history in place and mixed with the new one.
+**Before the season's first gameweek is scored**, change `FPL_LEAGUE_ID` and
+**redeploy** — a Vercel deployment carries the values it was built with, so
+the change does nothing until then. The next poll picks up the new league and
+marks the old members inactive, which takes them off the tables. To skip the
+wait, see [Forcing a sync](#forcing-a-sync).
 
-The sync marks departed members inactive, so they drop out of the tables on the
-next poll. What it cannot undo is the rest:
+**Once a gameweek has been scored**, changing the ID alone is not enough:
+gameweeks already scored are never rescored, so the new league's members would
+get nothing for them. The poller refuses instead, with an error naming both
+leagues — so a mistyped ID costs a failed poll, not a broken table. Set it back
+and the next poll carries on.
 
-- **Winners already declared** stay. `weekly_winners` is keyed by gameweek and
-  `monthly_winners` by month, neither of which changes with the league.
-- **Gameweeks already scored** are never rescored. `processed_at` marks them
-  done, so the new league's members get nothing for any gameweek that settled
-  before the change, and sit on zero while the old members carry full totals.
-
-Run a second league in a second database. A Neon branch takes seconds and costs
-nothing:
+To switch on purpose, run:
 
 ```bash
-# new DATABASE_URL + new FPL_LEAGUE_ID, then
-pnpm db:migrate
+pnpm switch-league 123456
 ```
 
-To reuse a database anyway, wipe it rather than reconfigure it:
+It uses the `DATABASE_URL` in `.env.local`, or one set in the shell. It marks
+the season unscored and rescores it for the new league from Gameweek 1, which
+FPL's history makes possible at any point in the season. Then set
+`FPL_LEAGUE_ID` to the new ID in Vercel and redeploy.
 
-```sql
-TRUNCATE managers, league, poll_runs RESTART IDENTITY CASCADE;
-UPDATE gameweeks SET processed_at = NULL;
-```
+Nothing is deleted. The old league's members are marked inactive, and running
+`pnpm switch-league` with the old ID brings them back with their scores.
 
-The cascade clears `gw_scores`, `entry_picks` and both winners tables.
-`gameweeks` is FPL-wide rather than league-specific, so it stays — clearing
-`processed_at` is what makes the poller score it all again. Then `pnpm sync`.
+Two things to know:
 
-Before the season this matters much less: with nothing scored and no winners
-declared, a sync alone is enough:
+- **Join dates.** FPL only reports when a manager joined while they are still
+  unranked, so everyone already ranked in the new league counts from
+  Gameweek 1 — `COUNT_PREJOIN_GWS=true` behaviour whatever you set. Members who
+  join after the switch are dated correctly.
+- **Telegram.** A rescore announces nothing it has already posted, and when it
+  scores several new gameweeks at once only the newest is sent.
 
-1. Change `FPL_LEAGUE_ID`, then **redeploy** — a Vercel deployment carries the
-   values it was built with, so the change does nothing until then.
-2. Force a sync rather than waiting for the hour: **GitHub → Actions → "Poll
-   FPL" → Run workflow**, or the `curl` under [Forcing a sync](#forcing-a-sync).
-
-The new members appear and the old ones drop out on that run, since anyone
-absent from the roster is marked inactive. Their rows stay in the database but
-no longer count.
-
-### Switching mid-season
-
-Once gameweeks have settled, two costs cannot be undone.
-
-**Join dates are lost.** FPL reports `joined_time` only while a manager is
-unranked, so everyone already ranked in the new league arrives without one and
-counts from Gameweek 1 — `COUNT_PREJOIN_GWS=true` behaviour whether you set it
-or not.
-
-Everything else recovers: FPL's history endpoint returns all past gameweeks, so
-scores and tables rebuild accurately, and a run that processes several
-gameweeks at once announces only the newest — the rest are marked as posted
-without being sent, so your group does not get a dozen messages at once.
-
-1. New database, then `pnpm db:migrate`
-2. Change `FPL_LEAGUE_ID`, then redeploy
-3. Run the poller until it has caught up
-
-Better: settle on the league before the first deadline, and run a second
-instance rather than repointing this one.
+To run two leagues at once, give each its own database: a Neon branch takes
+seconds and costs nothing.
 
 ### Forcing a sync
 
@@ -358,6 +330,7 @@ what the app does without exposing a real league.
 pnpm test        # unit tests: scoring, tie-breaks, month mapping, bonus
 pnpm sync        # refresh gameweeks and membership by hand
 pnpm poll        # run the poller by hand
+pnpm switch-league <id>  # move this database to another league and rescore
 pnpm db:check    # verify both connection strings answer
 ```
 

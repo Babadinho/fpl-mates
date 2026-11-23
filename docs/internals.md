@@ -420,6 +420,7 @@ pnpm dev          # dev server
 pnpm test         # unit tests
 pnpm sync         # refresh gameweeks and membership
 pnpm poll         # run the poller by hand
+pnpm switch-league <id>  # rescore the season for another league
 pnpm db:check     # verify both connection strings answer
 pnpm db:generate  # create a migration from schema changes (needs a TTY)
 pnpm db:migrate   # apply migrations

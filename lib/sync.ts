@@ -5,7 +5,7 @@
  * is exactly what the hourly cron does. Scoring is deliberately NOT here; it
  * gates on `data_checked` and lands in the poller.
  */
-import { and, asc, eq, notInArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, notInArray, sql } from 'drizzle-orm';
 import { getConfig } from './config';
 import { getDb } from './db';
 import { gameweeks, league, managers, managerSeasons } from './db/schema';
@@ -69,6 +69,41 @@ export async function syncGameweeks() {
 }
 
 /**
+ * Refuses to sync a different league once this season has been scored for
+ * another: gameweeks already scored are never rescored, so the new league's
+ * members would get nothing for them. Before that, switching is harmless.
+ * `pnpm switch-league` marks the season unscored, which is what lets it past.
+ */
+export async function assertSameLeague(leagueId: number) {
+  const db = getDb();
+  const [last] = await db
+    .select({ id: league.id, name: league.name })
+    .from(league)
+    .orderBy(desc(league.syncedAt))
+    .limit(1);
+  if (!last || last.id === leagueId) return;
+
+  const [scored] = await db
+    .select({ event: gameweeks.event })
+    .from(gameweeks)
+    .where(
+      and(
+        isNotNull(gameweeks.processedAt),
+        eq(gameweeks.season, sql`(select max(${gameweeks.season}) from ${gameweeks})`),
+      ),
+    )
+    .limit(1);
+  if (!scored) return;
+
+  throw new Error(
+    `FPL_LEAGUE_ID is ${leagueId}, but this database has already scored ` +
+      `${last.name} (${last.id}) this season. If the ID is a mistake, set it back ` +
+      `to ${last.id}. To switch leagues, run \`pnpm switch-league ${leagueId}\` — ` +
+      `see "Switching leagues" in the README.`,
+  );
+}
+
+/**
  * Mirrors the league roster.
  *
  * Joining facts are written once and never overwritten — `joined_time` only
@@ -78,6 +113,7 @@ export async function syncGameweeks() {
 export async function syncMembers(season: number, deadlines: { event: number; deadlineTime: Date }[]) {
   const cfg = getConfig();
   const db = getDb();
+  await assertSameLeague(cfg.leagueId);
   const roster = await fetchLeagueRoster();
 
   await db
@@ -162,8 +198,8 @@ export async function syncMembers(season: number, deadlines: { event: number; de
   // are kept: a gameweek they won stays won. The roster is fully paginated and
   // a failed fetch throws long before this, so absence here is real.
   //
-  // This also covers pointing an existing database at a different league,
-  // though a fresh database is the better answer — see the README.
+  // This also covers switching leagues before anything is scored. After that,
+  // assertSameLeague stops the sync instead.
   const deactivated = await db
     .update(managers)
     .set({ active: false })

@@ -1,3 +1,4 @@
+import { getTableName, type Table } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -14,6 +15,8 @@ let stored: { season: number; event: number; deadlineTime: Date }[] = [];
 let selects: unknown[][] = [];
 /** Every `.values(...)` argument, in order. */
 let inserted: unknown[][] = [];
+/** Rows for `select ... from league`, which the league guard reads first. */
+let leagueRows: { id: number; name: string }[] = [];
 
 vi.mock('./fpl/client', () => ({
   fetchEvents: () => fetchEvents(),
@@ -30,8 +33,8 @@ vi.mock('./db', () => ({
     // proxy standing in for every method covers the calls this module makes.
     const chain: Record<string, unknown> = {};
     let selecting = false;
+    let table = '';
     for (const method of [
-      'from',
       'orderBy',
       'where',
       'limit',
@@ -43,12 +46,15 @@ vi.mock('./db', () => ({
     ]) {
       chain[method] = () => chain;
     }
+    chain.from = (t: Table) => ((table = getTableName(t)), chain);
     chain.select = () => ((selecting = true), chain);
     chain.insert = chain.update = () => ((selecting = false), chain);
     chain.values = (rows: unknown[]) => (inserted.push(rows), chain);
     chain.returning = () => Promise.resolve([]);
     chain.then = (resolve: (v: unknown) => unknown) =>
-      Promise.resolve(selecting && selects.length > 0 ? selects.shift() : stored).then(resolve);
+      Promise.resolve(
+        selecting && table === 'league' ? leagueRows : selecting && selects.length > 0 ? selects.shift() : stored,
+      ).then(resolve);
     return chain;
   },
 }));
@@ -161,6 +167,7 @@ describe('syncMembers at the season boundary', () => {
     stored = [];
     selects = [];
     inserted = [];
+    leagueRows = [];
   });
 
   it('gives no season row to someone who joined after its final deadline', async () => {
@@ -203,5 +210,46 @@ describe('syncMembers at the season boundary', () => {
     await syncReferenceData();
 
     expect(seasonRows()).toEqual([]);
+  });
+});
+
+describe('the league guard', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    fetchEvents.mockReset();
+    fetchLeagueRoster.mockReset();
+    fetchEvents.mockResolvedValue(pastSeason);
+    fetchLeagueRoster.mockResolvedValue(roster);
+    stored = [];
+    selects = [];
+    inserted = [];
+  });
+
+  it('refuses a different league once gameweeks are scored', async () => {
+    leagueRows = [{ id: 5, name: 'Old League' }];
+    selects = [[{ event: 1 }]];
+
+    const { syncReferenceData } = await import('./sync');
+
+    await expect(syncReferenceData()).rejects.toThrow('already scored Old League (5) this season');
+    // Stopped before touching the roster, so nothing of the new league is written.
+    expect(fetchLeagueRoster).not.toHaveBeenCalled();
+  });
+
+  it('allows a different league before anything is scored', async () => {
+    leagueRows = [{ id: 5, name: 'Old League' }];
+    selects = [[]];
+
+    const { syncReferenceData } = await import('./sync');
+
+    await expect(syncReferenceData()).resolves.toMatchObject({ members: 1 });
+  });
+
+  it('allows the league already stored', async () => {
+    leagueRows = [{ id: 99, name: 'Test League' }];
+
+    const { syncReferenceData } = await import('./sync');
+
+    await expect(syncReferenceData()).resolves.toMatchObject({ members: 1 });
   });
 });
